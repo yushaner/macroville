@@ -1,0 +1,38 @@
+{
+  "name": "macroville",
+  "version": "0.2.0",
+  "type": "module",
+  "description": "MacroVille · 微观城邦 — an open-source city economy sandbox where micro-agents create macro emergence, and you learn economics by playing.",
+  "license": "MIT",
+  "homepage": "https://github.com/yushaner/macroville#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yushaner/macroville.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yushaner/macroville/issues"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "gen:preview": "node tools/gen-preview-terms.cjs",
+    "pack": "vite build && node tools/build-standalone.cjs",
+    "test:preview": "node tools/smoke-preview.cjs",
+    "sim:check": "node tools/sim-check.cjs",
+    "scale:check": "node tools/scale-check.cjs",
+    "land:check": "node tools/landcheck.cjs",
+    "tune:growth": "node tools/tune-growth.cjs",
+    "check:dom": "node tools/check-dom.cjs",
+    "audit": "node tools/audit.cjs",
+    "check:all": "node tools/check-dom.cjs && node tools/audit.cjs && node tools/smoke-preview.cjs && node tools/sim-check.cjs 240 20261020 marketTown",
+    "probe": "node tools/probe.cjs"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5",
+    "vite": "^5.2.11"
+  },
+  "dependencies": {
+    "chart.js": "^4.4.2"
+  }
+}

@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 💡 新点子 / 想加什么功能
+    url: https://github.com/yushaner/macroville/issues/new
+    about: 开一个空白 Issue 描述你的想法即可，也可以直接认领 PROGRESS.md 里的待办
+  - name: 📖 项目进展与已知问题
+    url: https://github.com/yushaner/macroville/blob/main/PROGRESS.md
+    about: 先看这里，你想提的问题可能已经记录在案
+  - name: 🤝 想贡献代码
+    url: https://github.com/yushaner/macroville/blob/main/CONTRIBUTING.md
+    about: 贡献指南、代码约定与 good first issue

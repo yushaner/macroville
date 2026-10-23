@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MacroVille · 微观城邦</title>
+  </head>
+  <body>
+    <div id="app">
+      <header id="topbar">
+        <div class="top-row">
+          <div class="brand">MacroVille <span class="sub">微观城邦</span></div>
+          <button id="cycle-status" class="cycle-status" title="点击查看经济周期详情：当前阶段、景气指数与产出缺口"></button>
+          <button id="quiz-status" class="quiz-status" title="点击打开学习档案：积分、奖杯与答题进度"></button>
+          <div id="hud" class="hud"></div>
+          <div id="controls" class="controls"></div>
+        </div>
+      </header>
+      <nav id="tabs" class="tabs">
+        <div id="cycle-bar" class="cycle-bar"></div>
+        <div class="tab-group" id="tab-group"></div>
+      </nav>
+      <main>
+        <section id="map-panel">
+          <div id="stage-bar" class="stage-bar"></div>
+          <div id="map-wrap">
+            <div id="map-tools" class="map-tools"></div>
+            <canvas id="city-canvas"></canvas>
+            <div id="tile-info" class="tile-info hidden"></div>
+            <div id="map-legend" class="map-legend"></div>
+          </div>
+        </section>
+        <div id="splitter" class="splitter" title="拖动调整侧栏宽度"><span class="sp-grip"></span></div>
+        <aside id="side">
+          <div id="side-tabs" class="side-tabs">
+            <button class="st active" data-pane="policy">政策</button>
+            <button class="st" data-pane="dash">指标</button>
+            <button class="st" data-pane="know">图谱</button>
+          </div>
+          <div id="side-body">
+            <div class="pane active" id="pane-policy"><div id="policy" class="panel"></div></div>
+            <div class="pane" id="pane-dash"><div id="dashboard" class="panel"></div></div>
+            <div class="pane" id="pane-know"><div id="knowledge" class="panel"></div></div>
+          </div>
+        </aside>
+      </main>
+    </div>
+    <div id="concept-modal" class="modal hidden"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

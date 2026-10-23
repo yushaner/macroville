@@ -1,0 +1,16 @@
+node_modules
+dist
+*.local
+.DS_Store
+.vite
+
+# 本地临时日志 / 探测文件（非项目内容）
+# 注意：preview.html 是交付物，不能被忽略，所以只点名日志文件
+*.log
+*.err
+preview.log
+preview2.log
+_*
+zz_*
+# 规模体检的输出快照（每次跑会重写）
+tools/scale-report.txt

@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MacroVille · 微观城邦 — 游戏介绍与规则</title>
+<style>
+:root {
+  --bg: #0f1117; --panel: #171a23; --panel-2: #1f2330; --border: #2a2f3e;
+  --text: #e6e9f0; --muted: #8b93a7; --accent: #4f9dff;
+  --good: #ff5a5a; --bad: #2ecc71; --warn: #f5a623;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: -apple-system, "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+  font-size: 15px; line-height: 1.7;
+}
+.wrap { max-width: 960px; margin: 0 auto; padding: 32px 20px 64px; }
+header.hero {
+  border: 1px solid var(--border); border-radius: 14px;
+  background: linear-gradient(135deg, #171a23, #1b2030);
+  padding: 28px 26px; margin-bottom: 22px;
+}
+.brand { font-size: 13px; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; }
+.hero h1 { margin: 6px 0 4px; font-size: 30px; }
+.hero .tag { color: var(--accent); font-weight: 600; }
+.hero p.lead { color: var(--muted); margin: 10px 0 0; font-size: 15px; }
+.cta { margin-top: 18px; display: flex; gap: 10px; flex-wrap: wrap; }
+a.btn, button.btn {
+  display: inline-block; text-decoration: none; cursor: pointer;
+  background: var(--accent); color: #fff; border: 1px solid var(--accent);
+  border-radius: 8px; padding: 9px 16px; font-size: 14px; font-weight: 600;
+}
+a.btn.ghost, button.btn.ghost { background: transparent; color: var(--text); border-color: var(--border); }
+a.btn.ghost:hover, button.btn.ghost:hover { border-color: var(--accent); }
+
+section { margin: 22px 0; }
+section > h2 { font-size: 19px; margin: 0 0 12px; display: flex; align-items: center; gap: 8px; }
+section > h2::before { content: ""; width: 4px; height: 18px; background: var(--accent); border-radius: 2px; }
+
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+.card h3 { margin: 0 0 6px; font-size: 15px; color: var(--text); }
+.card p { margin: 0; color: var(--muted); font-size: 13.5px; }
+.card p + p { margin-top: 8px; }
+.card h3 .tagline { margin-left: 8px; padding: 1px 7px; border-radius: 99px; font-size: 11px; font-weight: 600;
+  color: var(--accent); background: rgba(79,157,255,.12); border: 1px solid rgba(79,157,255,.3); vertical-align: 2px; }
+.card .ic { font-size: 20px; }
+
+ol.rules { margin: 0; padding-left: 0; list-style: none; counter-reset: r; }
+ol.rules li {
+  counter-increment: r; position: relative; padding: 12px 14px 12px 46px;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 10px;
+}
+ol.rules li::before {
+  content: counter(r); position: absolute; left: 12px; top: 12px;
+  width: 24px; height: 24px; border-radius: 50%; background: var(--accent); color: #fff;
+  font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+}
+ol.rules li b { color: var(--text); }
+
+.levers { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.lever { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+.lever .name { font-weight: 700; color: var(--text); }
+.lever .desc { color: var(--muted); font-size: 13px; margin-top: 4px; }
+.lever .eff { color: var(--accent); font-size: 12px; margin-top: 6px; }
+
+.diagram { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 18px; text-align: center; }
+.diagram svg { width: 100%; max-width: 520px; height: auto; }
+.diagram .cap { color: var(--muted); font-size: 12.5px; margin-top: 8px; }
+
+.note { background: var(--panel-2); border: 1px dashed var(--border); border-radius: 10px; padding: 12px 14px; color: var(--muted); font-size: 13px; }
+.note b { color: var(--text); }
+footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--border); color: var(--muted); font-size: 12.5px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+code { background: var(--panel-2); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; font-size: 12.5px; color: var(--text); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <div class="brand">MACROVILLE · 微观城邦</div>
+    <h1>一个开源的<span class="tag">城市经济沙盒</span></h1>
+    <p class="lead">你设定规则，一座虚拟城市的经济会自己生长、波动、涌现。没有输赢，只有理解与意外。</p>
+    <div class="cta">
+      <a class="btn" href="preview.html">查看界面预览 →</a>
+      <button class="btn ghost" onclick="document.getElementById('play').scrollIntoView({behavior:'smooth'})">怎么开始</button>
+    </div>
+  </header>
+
+  <!-- 核心定位 -->
+  <section>
+    <h2>这是什么</h2>
+    <div class="cards">
+      <div class="card"><div class="ic">🏙️</div><h3>城市 / 区域经济模拟</h3><p>上帝视角管理一座虚拟城市的经济系统：就业、物价、税收、民生如何联动。</p></div>
+      <div class="card"><div class="ic">🧩</div><h3>多主体仿真</h3><p>家庭、企业、政府三类主体各自决策、相互博弈，宏观现象自下而上涌现。</p></div>
+      <div class="card"><div class="ic">🔭</div><h3>纯沙盒 · 无胜负</h3><p>没有失败结局。目标是观察系统如何演化，在"有趣的状态"里体会经济规律。</p></div>
+      <div class="card"><div class="ic">📚</div><h3>玩中学经济学</h3><p>90 张概念卡靠<b>你的决策</b>解锁，从微观→产业→宏观，每个原理都用"本局真实数据"讲解。</p></div>
+    </div>
+  </section>
+
+  <!-- 你的角色 -->
+  <section>
+    <h2>你的角色</h2>
+    <div class="card">
+      <p>你是城市的<b>规划者 / 观察者</b>。开局设定城市初始参数与地图；运行中用<b>政策杠杆</b>干预经济走向；你也可以全程不干预，只静静看一座城市自己长出来——像培育一个生态。</p>
+      <p>游戏分<b>三个视角板块</b>（顶部 Tab 切换）：<b>个人视角</b>（典型家庭的储蓄、消费与求职）、<b>企业视角</b>（典型企业的定价、用工与扩产）、<b>政府视角</b>（税收与支出）。三者操作<b>同一座城市、同一批居民与企业</b>，只是你能拧的旋钮和重点看的指标不同——同一个决策在三方身上的后果往往相反，这正是本作想让你体会的。</p>
+      <p class="cap">视角是<b>渐进解锁</b>的：开局你只是一个住户，先管好自家的储蓄与消费；城镇成形后才有资格经营企业；城市长起来才轮到你坐进政府。已解锁的视角<b>不会因城市衰退被收回</b>。</p>
+    </div>
+  </section>
+
+  <!-- 经济循环图 -->
+  <section>
+    <h2>基本规则：经济怎么转</h2>
+    <div class="diagram">
+      <svg viewBox="0 0 520 300" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="ar" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+            <path d="M0,0 L7,3 L0,6 Z" fill="#4f9dff"/>
+          </marker>
+        </defs>
+        <!-- 节点 -->
+        <g font-family="sans-serif" font-size="15" font-weight="700" text-anchor="middle">
+          <circle cx="260" cy="60"  r="46" fill="#1f2330" stroke="#4f9dff" stroke-width="2"/>
+          <text x="260" y="58" fill="#e6e9f0">家庭</text><text x="260" y="76" fill="#8b93a7" font-size="11" font-weight="400">居民</text>
+          <circle cx="110" cy="220" r="46" fill="#1f2330" stroke="#c97b3a" stroke-width="2"/>
+          <text x="110" y="218" fill="#e6e9f0">企业</text><text x="110" y="236" fill="#8b93a7" font-size="11" font-weight="400">生产</text>
+          <circle cx="410" cy="220" r="46" fill="#1f2330" stroke="#2ecc71" stroke-width="2"/>
+          <text x="410" y="218" fill="#e6e9f0">政府</text><text x="410" y="236" fill="#8b93a7" font-size="11" font-weight="400">财政</text>
+        </g>
+        <!-- 弧箭头 -->
+        <path d="M214,86 C160,120 110,150 110,174" fill="none" stroke="#4f9dff" stroke-width="2" marker-end="url(#ar)"/>
+        <text x="150" y="120" fill="#8b93a7" font-size="11" text-anchor="middle">提供劳动</text>
+        <path d="M156,232 C230,265 330,265 364,232" fill="none" stroke="#4f9dff" stroke-width="2" marker-end="url(#ar)"/>
+        <text x="260" y="282" fill="#8b93a7" font-size="11" text-anchor="middle">收税</text>
+        <path d="M404,174 C404,140 350,110 300,88" fill="none" stroke="#4f9dff" stroke-width="2" marker-end="url(#ar)"/>
+        <text x="380" y="120" fill="#8b93a7" font-size="11" text-anchor="middle">公共服务</text>
+        <path d="M128,196 C160,140 210,120 224,92" fill="none" stroke="#c97b3a" stroke-width="2" stroke-dasharray="4 3" marker-end="url(#ar)"/>
+        <text x="150" y="150" fill="#c97b3a" font-size="11" text-anchor="middle">工资·商品</text>
+      </svg>
+      <div class="cap">家庭 ↔ 企业 ↔ 政府 的货币与商品循环：这是每月 tick 背后发生的事。</div>
+    </div>
+  </section>
+
+  <!-- 规则清单 -->
+  <section>
+    <h2>基本规则</h2>
+    <ol class="rules">
+      <li><b>三主体互动</b>：家庭提供劳动力并消费；企业雇佣、生产、给商品定价；政府收税、支出、建基建。三者互相牵动。</li>
+      <li><b>月度 Tick</b>：时间按月推进，每过一个月，主体完成一轮交互，结果聚合成宏观指标。</li>
+      <li><b>四大指标</b>：<b>GDP</b>（总产出）、<b>失业率</b>、<b>CPI</b>（通胀，基期 100）、<b>幸福度</b>；另看<b>财政余额</b>。</li>
+      <li><b>三套旋钮</b>：个人视角 5 个行为旋钮开局可用；企业视角 5 个随<b>城镇</b>解锁；政府视角 7 个政策杠杆随<b>城市</b>解锁，并按年份递进。拖动即改变规则，系统当月的反应会立刻体现在指标上。</li>
+      <li><b>名词即钥匙，决策即钥匙齿</b>：每个旋钮与指标都对应图谱里的一个经济学名词，<b>先解锁名词，旋钮与指标才出现</b>；而名词又只认你拧过的旋钮和你造成的城市状态。锁住的位置会灰显并写明它等的条件与当前完成度，例如"亲手把「加价率」调到 45% 以上（你调到过 30%）"。</li>
+      <li><b>顶部变量条随视角切换</b>：顶栏显示的不是固定几个数，而是<b>你这个身份真正关心的那几个</b>——个人视角看家庭账本（可支配收入、生活水平、家庭财富、抗风险缓冲、入不敷出占比），企业视角看经营盘面（平均利润、产能利用率、平均售价、总营收、岗位空缺率、累计倒闭），政府视角看宏观盘面（GDP、失业率、CPI、财政、基尼、幸福度）。每个变量都带<b>环比箭头</b>与<b>近 48 个月的迷你趋势线</b>；<b>点一下</b>可以打开详情：当前值、这个数怎么来的、区间最高/最低/均值，以及一张<b>累积曲线</b>。</li>
+      <li><b>软提示</b>：指标偏离建议区间时会给出提示与经济含义，但<b>不判输赢</b>——沙盒没有失败结局。</li>
+      <li><b>涌现 > 脚本</b>：没有预设剧情。繁荣、衰退、通胀、崩盘，都是参数与互动自然跑出来的结果。</li>
+    </ol>
+  </section>
+
+  <!-- 开局蓝图 -->
+  <section>
+    <h2>开局先选一份蓝图：同一个种子，也能长出不同的城</h2>
+    <p>玩法的核心不是挂机等待，而是<b>你先设定一套初始条件 → 家庭、企业与地块之间自己博弈 → 跑出别人跑不出的结果</b>。所以每局开始前，你要先做一次真正的决定：选一份<b>城市蓝图</b>，并决定这一局走<b>几轮循环</b>。</p>
+    <div class="levers">
+      <div class="lever"><div class="name">🌾 农耕村落</div><div class="desc">380 人起步，储蓄保守、政府少干预。</div><div class="eff">增长慢，但家庭财富与抗风险能力先长起来</div></div>
+      <div class="lever"><div class="name">🛍 集市重镇</div><div class="desc">620 人，商铺密集、居民爱消费、贸易半开放。</div><div class="eff">需求端波动立刻传导到定价与就业</div></div>
+      <div class="lever"><div class="name">🏭 工业新城</div><div class="desc">700 人，工业地块占比 85%，用补贴换岗位。</div><div class="eff">人口冲得快，污染与低工资先压满意度</div></div>
+      <div class="lever"><div class="name">⚓ 贸易港口</div><div class="desc">660 人，贸易开放度起点 0.55。</div><div class="eff">被外部需求放大，也被外部冲击放大</div></div>
+      <div class="lever"><div class="name">🎓 科教新城</div><div class="desc">520 人，公共支出 0.48、研发补贴 0.4。</div><div class="eff">早期慢，技能与生产率滚雪球</div></div>
+      <div class="lever"><div class="name">🧪 自由实验</div><div class="desc">不预设倾向，初始参数由种子在区间里抽取。</div><div class="eff">每一局都是新题，适合摸清机制后玩极端组合</div></div>
+    </div>
+    <p class="cap">蓝图不只改旋钮：它还改<b>初始人口</b>与<b>地块构成</b>（工业带/商业带各占多少）。所以同一个随机种子，换一份蓝图长出来的城市也不一样。</p>
+  </section>
+
+  <!-- 循环式玩法 -->
+  <section>
+    <h2>循环式玩法：个人 → 企业 → 政府 → 再回到个人</h2>
+    <div class="card">
+      <p>一轮循环 = <b>个人视角 → 企业视角 → 政府视角</b>各主导一段，走完之后回到个人视角，进入<b>下一轮</b>。开局可设 3 / 4 / 5 轮。</p>
+      <p>之所以要转回来，是因为<b>企业或政府拧过的参数，会反过来改写家庭面对的物价、工资与税率</b>：你在第二轮回到个人视角时，看到的已经不是同一道题。而你在个人视角改掉的储蓄与技能投入，又会通过需求与生产率影响企业，再经由税收与就业影响政府——三者的因果是闭环的。</p>
+      <p>概念也按轮次<b>分层释放</b>：第 1 轮只放最浅的一层，每进入新的一轮才放出更深一层。同一个名词（比如"工资"）在更深的轮次里会以<b>成本推动</b>、<b>预期</b>这样更细的切面重新出现。</p>
+      <p class="cap">而且解锁是<b>一个一个来</b>的：每月最多点亮 1 个名词，两次解锁之间至少隔两个月。每次都会告诉你"是因为你做了什么"。实测跑 240 个月，解锁动作有 24~57 次——屏幕上一次只出现一条提示，不会一批名词哗啦全亮。</p>
+    </div>
+  </section>
+
+  <!-- 发展阶段 -->
+  <section>
+    <h2>城市发展阶段：8 档细分 + 城市定位</h2>
+    <p>城市不是一开局就建好的。开局你只有中心一小片建成区，随着人口与经济发展逐步向外摊开——<b>重置后从村落重新开始，读档则从存档点继续</b>。阶段细分成 8 档，每档都会改变可出现的设施、企业数量与地图视野。</p>
+    <div class="levers">
+      <div class="lever"><div class="name">🏚 村落</div><div class="desc">起点。几排屋子围着一条土路。</div><div class="eff">视角：👤 个人 · 视野 9×9</div></div>
+      <div class="lever"><div class="name">🏘 村庄</div><div class="desc">人口 700+ / 存续 8 月。</div><div class="eff">商铺 · 集市 · 视野 13×13</div></div>
+      <div class="lever"><div class="name">🏙 集镇</div><div class="desc">人口 1100+ / 存续 18 月。</div><div class="eff">工业区 · 电厂 · 🏭 企业视角 · 视野 19×19</div></div>
+      <div class="lever"><div class="name">🌉 小城市</div><div class="desc">人口 1600+ / 存续 30 月。</div><div class="eff">水厂 · 市政管网 · 视野 25×25</div></div>
+      <div class="lever"><div class="name">🌆 中等城市</div><div class="desc">人口 2200+ / 存续 45 月。</div><div class="eff">学校 · 🏛️ 政府视角 · 视野 31×31</div></div>
+      <div class="lever"><div class="name">🌃 大城市</div><div class="desc">人口 2800+ / 存续 62 月。</div><div class="eff">医院 · 公共医疗 · 视野 37×37</div></div>
+      <div class="lever"><div class="name">🌇 都会区</div><div class="desc">人口 3400+ / 存续 80 月。</div><div class="eff">集聚效应 · 规模经济 · 视野 45×45</div></div>
+      <div class="lever"><div class="name">🛰 全球城市</div><div class="desc">人口 4200+ / 存续 104 月。</div><div class="eff">全境开发 · 全球分工 · 视野全开</div></div>
+    </div>
+    <p class="cap">升级靠<b>人口</b>与<b>存续时间</b>双条件；人口大幅外流也会让城市衰退回落（带滞后，不会在门槛附近反复横跳）。人口流入有两股动力：一是<b>居民满意度</b>（由税后实际工资的购买力、储蓄缓冲、公共服务决定，并被失业率与拥挤成本拖累），二是<b>企业的岗位空缺</b>——只要企业在招人，城市就会持续吸引外来人口。<br><b>地图视野随阶段同步拉开</b>：村落只看得见自家门口几条街，全球城市才拉远看到整座城；格子尺寸按面板空间自动缩放，整张地图始终完整显示，不需要缩放浏览器。</p>
+    <div class="note" style="margin-top:12px">
+      <b>城市定位：</b>你长期拧哪一侧的政策，城市就会长成不同的样子——<b>🏭 工业型</b>（产业补贴长期偏高）、<b>🛒 商贸型</b>（贸易开放度高）、<b>🔬 科创型</b>（研发补贴持续投入）、<b>🌳 宜居型</b>（公共支出与福利高、工业弱）、<b>⚖️ 均衡型</b>（各项都不极端）。定位不是按钮，是<b>涌现</b>出来的：判的是你拧到过的旋钮极值，而不是某个月的临时值。它可能长成大城市，也可能停在某个规模——<b>规模和定位各自独立</b>，不同政策组合会导向不同结局。
+    </div>
+  </section>
+
+  <!-- 地块与图层 -->
+  <section>
+    <h2>每个方格都是有脾气的</h2>
+    <p>主界面的格子不是装饰色块。每块地都带一整套属性，并随时间<b>逐月演化</b>：建成没建成、住了多密、值多少钱、被污染成什么样、公共服务够不够用。你拧的每一根旋钮，最后都落到这些数字上。</p>
+    <p>地图的初始布局按<b>真实的城市规划逻辑</b>生成，而不是随机撒点：<b>中心是 CBD</b>（商业），向外依次是<b>内城居住环 → 住商混合环 → 工业带 → 外围绿带</b>；路网由中心十字主干道、两条环路与支路网格组成；<b>工业与电厂只落在下风向一侧</b>，水厂放在上风向，学校与医院则按 6×6 网格均匀覆盖居住区。所以你看到的"工厂在南边、学校挨着住区"，是规划规则自己长出来的。</p>
+    <div class="levers">
+      <div class="lever"><div class="name">等级 / 密度</div><div class="desc">密度随人口与企业利用率升降。</div><div class="eff">又密又贵 → 升级；长期空置 → 掉级</div></div>
+      <div class="lever"><div class="name">污染</div><div class="desc">工业区与电厂排放，向邻格扩散；公共支出决定自净能力。</div><div class="eff">↑ 邻近居民满意度下降 → 人口外流</div></div>
+      <div class="lever"><div class="name">公共服务</div><div class="desc">学校、医院、水电按半径递减辐射。</div><div class="eff">↑ 舒适度与地价上升，吸引迁入</div></div>
+      <div class="lever"><div class="name">地价</div><div class="desc">区位 + 临路 + 密度 + 舒适度 − 污染。</div><div class="eff">贵地逼走低效用途 → 自发"破墙开店"</div></div>
+    </div>
+    <p class="cap">地图上方有<b>六个图层</b>：用途 / 地价 / 密度 / 污染 / 等级 / 公共服务。数值图层会转成热力图；点任意格子可看到它此刻的全部属性——同一座城市，六种读法。</p>
+  </section>
+
+  <!-- 政策杠杆 -->
+  <section>
+    <h2>你的政策杠杆</h2>
+    <div class="levers">
+      <div class="lever"><div class="name">税率</div><div class="desc">政府收入来源。</div><div class="eff">↑ 财政强，但居民与企业活力下降</div></div>
+      <div class="lever"><div class="name">最低工资</div><div class="desc">企业用工底线。</div><div class="eff">↑ 居民增收，但企业成本与定价上行</div></div>
+      <div class="lever"><div class="name">产业补贴</div><div class="desc">定向激励生产。</div><div class="eff">↑ 刺激供给与就业，可能推升物价</div></div>
+      <div class="lever"><div class="name">公共服务支出</div><div class="desc">基建与民生。</div><div class="eff">↑ 幸福度与基建提升，可能财政赤字</div></div>
+    </div>
+    <p class="cap">政府视角另有<b>研发补贴、贸易开放度、福利支出</b>随城市成长逐年解锁（第 3~5 年）；每一根杠杆都要先在经济学图谱里解锁对应名词才会出现。</p>
+  </section>
+
+  <!-- 三视角板块 -->
+  <section>
+    <h2>三个视角板块</h2>
+    <div class="cards">
+      <div class="card">
+        <div class="ic">👤</div><h3>① 个人 / 家庭视角<span class="tagline">村庄起</span></h3>
+        <p><b>旋钮</b>：储蓄率、消费倾向、劳动力参与率、技能投入、风险偏好。</p>
+        <p><b>看什么</b>：可支配收入、生活水平、家庭财富、抗风险缓冲。</p>
+      </div>
+      <div class="card">
+        <div class="ic">🏭</div><h3>② 企业视角<span class="tagline">城镇起</span></h3>
+        <p><b>旋钮</b>：加价率、工资出价、扩产意愿、研发投入、库存策略。</p>
+        <p><b>看什么</b>：平均利润、产能利用率、平均售价、总营收。</p>
+      </div>
+      <div class="card">
+        <div class="ic">🏛️</div><h3>③ 政府视角<span class="tagline">城市起</span></h3>
+        <p><b>旋钮</b>：税率、最低工资、公共支出、产业补贴、研发补贴、贸易开放度、福利支出。</p>
+        <p><b>看什么</b>：GDP、就业率、CPI、财政、幸福度、基尼系数。</p>
+      </div>
+    </div>
+    <p class="cap">三个视角共用同一套居民与企业数据：你在个人视角调高储蓄率，企业视角的利润会随之承压——这就是<b>不同决策对不同经济主体的非对称影响</b>。顺序也是叙事：先当住户，再当老板，最后才轮到你决定整座城的税率。</p>
+  </section>
+
+  <!-- 操作 -->
+  <section id="play">
+    <h2>怎么开始</h2>
+    <div class="cards">
+      <div class="card"><h3>① 开局设定</h3><p>进场先选<b>蓝图</b>与<b>循环轮数</b>（3 / 4 / 5 轮，推荐 4）。这一步就决定了这一局的走向，不是走过场。</p></div>
+      <div class="card"><h3>② 速度控制</h3><p>顶部 ⏸ / 1x / 2x / 4x 控制演化节奏，随时暂停观察。</p></div>
+      <div class="card"><h3>③ 解锁视角并拖动滑杆</h3><p>视角随城市成长依次开放（个人 → 企业 → 政府）；右侧旋钮实时生效，看指标与地图如何反应。拧完当场结算解锁。</p></div>
+      <div class="card"><h3>④ 读图谱，解锁概念</h3><p>名词<b>不再按月自动出现</b>：每拧一次旋钮、每造成一次经济状态，图谱才可能被点亮一格。点开即学原理。弹窗时自动暂停，<b>关闭后自动恢复运行</b>。</p></div>
+      <div class="card"><h3>⑤ 界面怎么调</h3><p>顶栏右侧有<b>界面缩放滑轨</b>（70%~140%），内容多时调小即可，<b>不用再去缩放浏览器</b>；地图与侧栏之间可以<b>拖动分隔条</b>调宽度；右侧三块面板（政策 / 指标 / 图谱）是<b>页签</b>，不再纵向堆叠把页面撑爆。</p></div>
+      <div class="card"><h3>⑥ 存档：多槽位 + 自己命名</h3><p>存档<b>不再默认按视角命名</b>——保存时可以自己起名，也可以覆盖已有槽位。读档时打开<b>槽位列表</b>选择要读哪一个，还能<b>重命名</b>与<b>删除</b>。旧版单槽存档会自动迁移到槽位制。</p></div>
+    </div>
+    <div class="note" style="margin-top:12px">
+      <b>本地运行：</b>在项目目录执行 <code>npm install</code> 后 <code>npm run dev</code>，浏览器打开 <code>http://localhost:5173</code> 即可游玩（需本机 Node 环境）。本沙箱无法对外启动服务，故提供上方「界面预览」静态页供先睹为快。
+    </div>
+  </section>
+
+  <!-- 玩中学 -->
+  <section>
+    <h2>玩中学经济学（核心特色）</h2>
+    <div class="card">
+      <p>大多数模拟游戏只让你"看到"曲线，MacroVille 让你<b>读懂</b>曲线。当你本局的 CPI 突破 102，会弹出<b>通货膨胀</b>概念卡——定义、本局成因、可试实验、以及公式一并奉上；你拉高税率做对照，就亲手验证了<b>乘数效应</b>。调一次政策，学一个原理。</p>
+      <p><b>经济学图谱共 90 个名词</b>：微观 31、中观（产业）30、宏观 29，按<b>5 层深度</b>排列。<b>它们不是按月份排队的</b>——每个名词都带一条解锁条件，判的是三件事：你<b>亲手把旋钮拧到了哪儿</b>（例如"亲手把技能投入调到 50% 以上"）、<b>这些决策把城市带成了什么样</b>（例如"让 CPI 冲到过 106"、"失业率高于 8% 且 CPI 高于 105 连续维持 3 个月"），以及<b>个体博弈跑出来的分化结果</b>（例如"入不敷出的家庭占比超过 35%"）。</p>
+      <p><b>挂机点不满图谱，而且一次只来一个。</b>实测什么都不做跑满 240 个月：农耕村落 38 / 90、集市重镇 69 / 90、科教新城 72 / 90——<b>你开的头决定了纯挂机能刷到哪儿</b>；剩下的必须靠你把城市带进更极端的处境。而且每月最多只点亮 1 个、两次之间至少隔 2 个月，不会一批名词哗啦全亮。</p>
+      <p>它也不是摆设字典——<b>每个名词都挂着一把钥匙</b>，解锁它，右侧仪表盘上对应的旋钮或指标才会亮起。想调最低工资？先在图谱里点亮"最低工资"这一格。反过来，锁住的旋钮会写明它等的是哪个名词、以及那个名词现在的完成度。</p>
+    </div>
+  </section>
+
+  <footer>
+    <span>MacroVille · 微观城邦 — 开源城市经济沙盒</span>
+    <span>Vite + TypeScript + Canvas2D + Chart.js · MIT</span>
+  </footer>
+
+</div>
+</body>
+</html>

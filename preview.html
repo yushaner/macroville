@@ -1,0 +1,2558 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MacroVille · 微观城邦（界面预览）</title>
+<style>
+  :root {
+    --bg:#0a0c12; --panel:#12151d; --panel-2:#1a1f2b; --border:#242b3a;
+    --text:#e6e9f0; --muted:#8b93a7; --accent:#4f9dff; --warn:#f5a623;
+    --bad:#ff5a5a; --good:#2ecc71;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin:0; background:var(--bg); color:var(--text); font: 13px/1.5 -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+    overflow:hidden;
+  }
+  /* 界面缩放：顶栏滑轨改 --ui-zoom，整体等比缩放，不用再去缩放浏览器 */
+  #app { display:flex; flex-direction:column; height:calc(100vh / var(--ui-zoom,1)); zoom:var(--ui-zoom,1); }
+  #topbar { display:flex; align-items:center; gap:10px; padding:5px 12px; border-bottom:1px solid var(--border); background:var(--panel); }
+  .brand { font-weight:700; font-size:15px; letter-spacing:.02em; }
+  .brand .sub { color:var(--muted); font-weight:400; font-size:11px; margin-left:4px; }
+  .stats { display:flex; gap:12px; color:var(--muted); font-size:12px; }
+  .stats b { color:var(--text); }
+  .controls { margin-left:auto; display:flex; gap:6px; align-items:center; }
+  button {
+    background:var(--panel-2); color:var(--text); border:1px solid var(--border);
+    border-radius:6px; padding:5px 9px; cursor:pointer; font-size:12px; font-family:inherit;
+  }
+  button:hover { border-color:var(--accent); }
+  button.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .rules-btn { border-style:dashed; }
+  /* 数值口径速查表：把「这个数字是什么单位」摊开讲 */
+  .unit-table { width:100%; border-collapse:collapse; margin:8px 0 10px; font-size:12px; }
+  .unit-table th, .unit-table td { padding:5px 7px; border-bottom:1px solid var(--border); text-align:left; vertical-align:top; }
+  .unit-table th { color:var(--muted); font-weight:600; font-size:11px; }
+  .unit-table td b { color:var(--accent); }
+
+  /* 顶部实时变量条：随视角切换，点开有详情与累积曲线 */
+  .hud { display:flex; gap:5px; flex:1; flex-wrap:wrap; min-width:0; }
+  .hud-chip { display:flex; align-items:center; gap:5px; padding:3px 7px; background:var(--panel-2);
+    border:1px solid var(--border); border-radius:6px; cursor:pointer; color:var(--text); font-size:12px; line-height:1.15; }
+  .hud-chip:hover { border-color:var(--accent); }
+  .hud-chip.warn { border-color:var(--warn); }
+  .hc-icon { font-size:12px; }
+  .hc-body { display:flex; flex-direction:column; align-items:flex-start; }
+  .hc-label { color:var(--muted); font-size:10px; }
+  .hc-value { font-weight:700; font-variant-numeric:tabular-nums; font-size:12.5px; }
+  .hc-arrow { font-size:9px; margin-left:2px; }
+  .hc-arrow.up { color:var(--bad); }
+  .hc-arrow.down { color:var(--good); }
+  .hc-spark { width:44px; height:15px; }
+  .zoom-box { display:flex; align-items:center; gap:4px; padding-left:6px; margin-left:2px; border-left:1px solid var(--border); }
+  .zoom-box label { font-size:11px; color:var(--muted); }
+  .zoom-box input[type=range] { width:72px; accent-color:var(--accent); }
+  .zoom-box .zv { font-size:11px; width:34px; text-align:right; font-variant-numeric:tabular-nums; }
+
+  .tabs { display:flex; align-items:center; gap:10px; padding:6px 14px; border-bottom:1px solid var(--border); }
+  .tab { display:flex; align-items:center; gap:6px; padding:5px 13px; border-radius:6px 6px 0 0; }
+  .tab-sub { font-size:10px; opacity:.75; }
+  .tab.locked { opacity:.5; cursor:not-allowed; border-style:dashed; background:transparent; }
+  .tab-group { display:flex; gap:6px; margin-left:auto; }
+  .cycle-bar { display:flex; align-items:center; gap:8px; color:var(--muted); font-size:11.5px; flex-wrap:wrap; }
+  .cycle-bar b { color:var(--text); }
+  .cb-round { display:flex; align-items:center; gap:3px; }
+  .cb-dot { width:8px; height:8px; border-radius:50%; background:var(--border); }
+  .cb-dot.on { background:var(--accent); }
+  .cb-dot.now { background:var(--warn); }
+  .cb-sep { color:var(--border); }
+  .cb-note { color:var(--warn); }
+  .stage-orient { margin-left:6px; padding:0 6px; border-radius:999px; background:rgba(79,157,255,.14); color:var(--accent); font-size:10.5px; }
+
+  /* 可拖动的侧栏分隔条 */
+  .splitter { flex:none; width:6px; cursor:col-resize; background:var(--border); display:flex; align-items:center; justify-content:center; }
+  .splitter:hover, .splitter.dragging { background:var(--accent); }
+  .sp-grip { width:2px; height:26px; border-radius:2px; background:var(--muted); }
+
+  /* 侧栏页签：三块面板不再纵向堆叠 */
+  .side-tabs { display:flex; gap:4px; }
+  .st { flex:1; padding:5px 8px; font-size:12px; border-radius:6px 6px 0 0; border-bottom:none; }
+  .st.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .pane { display:none; }
+  .pane.active { display:block; }
+
+  /* 变量详情 */
+  .det-now { font-size:28px; font-weight:700; font-variant-numeric:tabular-nums; margin:4px 0 8px; }
+  .det-chart { width:100%; height:150px; display:block; }
+  .det-axis { display:flex; justify-content:space-between; color:var(--muted); font-size:10.5px; }
+  .det-stats { margin-top:8px; display:grid; grid-template-columns:1fr 1fr; gap:2px 16px; }
+  .det-row { display:flex; justify-content:space-between; font-size:12px; padding:2px 0; border-bottom:1px dashed var(--border); }
+  .det-row span { color:var(--muted); }
+
+  /* 存档管理 */
+  .save-new { display:flex; gap:6px; margin:8px 0 12px; }
+  .save-new input { flex:1; background:var(--panel-2); border:1px solid var(--border); color:var(--text); border-radius:6px; padding:6px 9px; font-size:13px; font-family:inherit; }
+  .save-list { display:flex; flex-direction:column; gap:6px; max-height:44vh; overflow-y:auto; }
+  .save-row { display:flex; align-items:center; gap:8px; padding:7px 9px; background:var(--panel-2); border:1px solid var(--border); border-radius:8px; }
+  .save-row.active { border-color:var(--accent); }
+  .sr-main { flex:1; min-width:0; }
+  .sr-name { font-size:13px; font-weight:600; }
+  .sr-tag { margin-left:6px; font-size:10px; color:var(--accent); border:1px solid var(--accent); border-radius:999px; padding:0 6px; }
+  .sr-meta { font-size:11px; color:var(--muted); }
+  .sr-ops { display:flex; gap:4px; flex-wrap:wrap; justify-content:flex-end; max-width:190px; }
+  .sr-btn { padding:3px 7px; font-size:11px; }
+  .sr-btn.danger:hover { border-color:var(--bad); color:var(--bad); }
+
+  /* 开局蓝图 */
+  .bp-grid { display:grid; grid-template-columns:1fr 1fr; gap:7px; margin:8px 0 4px; }
+  .bp-card { text-align:left; padding:8px 10px; background:var(--panel-2); border:1px solid var(--border); border-radius:8px; cursor:pointer; }
+  .bp-card.sel { border-color:var(--accent); background:rgba(79,157,255,.1); }
+  .bp-head { display:flex; align-items:center; gap:5px; font-size:13px; }
+  .bp-icon { font-size:15px; }
+  .bp-tag { color:var(--warn); font-size:10.5px; margin-left:auto; }
+  .bp-desc { font-size:11px; color:var(--muted); line-height:1.5; margin-top:3px; }
+  .bp-hint { font-size:10.5px; color:var(--accent); line-height:1.5; margin-top:3px; }
+  .round-pick { display:flex; gap:6px; margin:4px 0 10px; }
+  .rp-btn { padding:5px 12px; font-size:12.5px; }
+  .rp-btn.sel { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .setup-actions { display:flex; justify-content:flex-end; }
+
+  main { flex:1; display:flex; min-height:0; }
+  #map-panel { flex:1; min-width:0; display:flex; flex-direction:column; align-items:center; padding:10px; position:relative; background:var(--panel); border-right:1px solid var(--border); overflow:hidden; }
+  #stage-bar { width:100%; background:var(--panel-2); border:1px solid var(--border); border-radius:8px; padding:7px 10px; margin-bottom:8px; }
+  .stage-head { display:flex; align-items:center; gap:6px; font-size:13px; }
+  .stage-steps { margin-left:auto; display:flex; align-items:center; gap:2px; font-size:12px; }
+  .stage-step { opacity:.35; }
+  .stage-step.on { opacity:1; }
+  .stage-arrow { opacity:.3; }
+  .stage-track { height:6px; background:var(--panel); border-radius:3px; margin:6px 0 4px; overflow:hidden; }
+  .stage-fill { height:100%; background:linear-gradient(90deg,#2e8bff,#4f9dff); }
+  .stage-meta { color:var(--muted); font-size:11px; }
+
+  #map-wrap { position:relative; flex:1; min-height:0; display:flex; align-items:center; justify-content:center; width:100%; }
+  /* 地图按「当前阶段视野」取景，格子的像素尺寸由可用空间反算，整张图始终完整落在面板里 */
+  #city-grid { display:grid; gap:1px; max-width:100%; max-height:100%; align-self:center; }
+  .tile { background:#0b0d13; border-radius:1px; cursor:pointer; }
+  .tile.void { background:#07080c; cursor:default; opacity:.35; }
+  .tile.sel { outline:2px solid var(--accent); outline-offset:-1px; }
+  .tile.undeveloped { background:#0b0d13; }
+
+  .map-tools { position:absolute; left:0; top:0; display:flex; flex-wrap:wrap; gap:4px; max-width:250px; z-index:3; }
+  .layer-btn { padding:3px 7px; font-size:11px; background:rgba(15,17,23,.86); }
+  .tile-info { position:absolute; right:0; top:0; width:210px; z-index:3; background:rgba(15,17,23,.95); border:1px solid var(--border); border-radius:8px; padding:8px 10px; font-size:11px; }
+  .tile-info.hidden { display:none; }
+  .ti-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:5px; font-size:12px; }
+  .ti-close { background:transparent; border:none; color:var(--muted); font-size:14px; padding:0 4px; }
+  .ti-row { display:flex; justify-content:space-between; gap:8px; padding:1px 0; }
+  .ti-k { color:var(--muted); }
+  .ti-v { text-align:right; font-variant-numeric:tabular-nums; }
+
+  .map-legend { position:absolute; left:0; bottom:0; background:rgba(15,17,23,.86); border:1px solid var(--border); border-radius:8px; padding:7px 9px; font-size:10.5px; color:var(--muted); display:flex; flex-direction:column; gap:3px; max-height:70%; overflow:auto; }
+  .lg-item { display:flex; align-items:center; gap:6px; }
+  .lg-sw { width:11px; height:11px; border-radius:2px; flex:none; }
+  .lg-title { color:var(--text); font-weight:600; margin-bottom:2px; }
+  .lg-sub { color:var(--muted); font-weight:400; font-size:9.5px; }
+  .lg-bar { height:9px; border-radius:3px; background:linear-gradient(90deg,#123a6b,#1d7fa8,#38b764,#f3c13a,#e6484f); }
+  .lg-scale { display:flex; justify-content:space-between; font-size:9.5px; }
+  .lg-note { font-size:9.5px; line-height:1.4; max-width:165px; }
+
+  #side { width:392px; min-width:340px; overflow-y:auto; padding:10px; display:flex; flex-direction:column; gap:10px; }
+  .panel { background:var(--panel); border:1px solid var(--border); border-radius:8px; padding:10px; }
+  .panel h3 { margin:0 0 8px; font-size:12.5px; color:var(--muted); font-weight:600; display:flex; justify-content:space-between; }
+
+  .kpi-grid { display:grid; grid-template-columns:1fr 1fr; gap:7px; }
+  .kpi { background:var(--panel-2); border-radius:6px; padding:7px 8px; border:1px solid transparent; }
+  .kpi .k { color:var(--muted); font-size:10.5px; }
+  .kpi .v { font-size:15px; font-weight:700; font-variant-numeric:tabular-nums; }
+  .kpi.warn { border-color:rgba(245,166,35,.55); }
+  .kpi.locked { border:1px dashed var(--border); background:transparent; }
+  .kpi.locked .v { font-size:10.5px; font-weight:400; color:var(--muted); }
+  .kpi .k-why { margin-top:3px; font-size:9.5px; line-height:1.35; color:var(--muted); opacity:.85; }
+  .req-bar { height:4px; background:var(--panel); border-radius:3px; margin:8px 0 2px; overflow:hidden; }
+  .req-fill { height:100%; background:linear-gradient(90deg,#2e8bff,#4f9dff); }
+
+  .hints { margin-top:9px; border-top:1px dashed var(--border); padding-top:7px; }
+  .hints-title { color:var(--warn); font-size:11.5px; font-weight:600; margin-bottom:3px; }
+  .hint-item { color:var(--muted); font-size:11px; line-height:1.6; }
+
+  .slider-row { display:grid; grid-template-columns:86px 1fr 44px; align-items:center; gap:8px; margin:6px 0; font-size:11.5px; }
+  .slider-row label { color:var(--muted); cursor:help; }
+  .slider-row input[type=range] { width:100%; accent-color:var(--accent); }
+  .slider-row .val { text-align:right; font-variant-numeric:tabular-nums; }
+  .slider-row.locked-row { grid-template-columns:1fr auto; opacity:.55; }
+  .lock-note { font-size:10px; color:var(--muted); }
+
+  .kchapter { display:flex; justify-content:space-between; color:var(--muted); font-size:10.5px; margin:8px 0 3px; letter-spacing:.03em; }
+  .k-count { color:var(--accent); font-size:10.5px; }
+  .kterms { display:flex; flex-wrap:wrap; gap:4px; }
+  .kchip { padding:2px 7px; font-size:10.5px; border-radius:999px; background:var(--panel-2); border:1px solid var(--border); color:var(--text); cursor:pointer; white-space:nowrap; }
+  .kchip.unlocked { border-color:rgba(79,157,255,.5); }
+  .kchip.locked { opacity:.42; }
+  .kchip:hover { border-color:var(--accent); }
+
+  .modal { position:fixed; inset:0; background:rgba(0,0,0,.62); display:flex; align-items:center; justify-content:center; z-index:50; padding:20px; }
+  .modal.hidden { display:none; }
+  .modal .card { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:16px 18px; max-width:560px; max-height:82vh; overflow:auto; }
+  .modal h2 { margin:2px 0 10px; font-size:17px; }
+  .modal h4 { margin:12px 0 3px; font-size:12px; color:var(--accent); }
+  .modal p { margin:0; color:#c9cfdc; font-size:12.5px; line-height:1.65; }
+  .modal .muted { color:var(--muted); font-size:11.5px; }
+  .chapter { color:var(--muted); font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; }
+  .modal .close { margin-top:14px; }
+  .tag { display:inline-block; background:var(--panel-2); border:1px solid var(--border); border-radius:4px; padding:1px 6px; margin:2px 4px 0 0; font-size:11px; color:var(--muted); }
+
+  .toast { position:fixed; top:56px; left:50%; transform:translateX(-50%) translateY(-8px); background:rgba(30,38,54,.96); border:1px solid var(--accent); color:var(--text); padding:7px 14px; border-radius:7px; font-size:12px; opacity:0; pointer-events:none; transition:all .18s; z-index:80; }
+  .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+
+  /* 经济周期指示条：阶段 + 景气指数条 + 产出缺口 */
+  .bc-status { display:flex; align-items:center; gap:7px; padding:3px 8px; border:1px solid var(--border);
+    border-radius:6px; background:var(--panel-2); cursor:pointer; font-size:11.5px; flex:0 0 auto; }
+  .bc-status:hover { border-color:var(--accent); }
+  .bc-phase { font-weight:700; }
+  .bc-ph-boom { color:#ff7a7a; } .bc-ph-recession { color:#f5a623; }
+  .bc-ph-depression { color:#6ea8ff; } .bc-ph-recovery { color:#2ecc71; }
+  .bc-bar { position:relative; width:78px; height:6px; border-radius:3px;
+    background:linear-gradient(90deg,#2f6ea8,#3a4a63 48%,#3a4a63 52%,#c9603f); overflow:visible; }
+  .bc-bar i { position:absolute; top:-2px; width:3px; height:10px; margin-left:-1.5px; background:var(--text);
+    border-radius:2px; box-shadow:0 0 0 1px rgba(0,0,0,.5); }
+  .bc-num { font-variant-numeric:tabular-nums; color:var(--text); }
+  .bc-gap { color:var(--muted); } .bc-gap.up { color:#ff8a8a; } .bc-gap.down { color:#6fd3a0; }
+  .bc-mon { color:var(--muted); }
+
+  /* 闯关问答 */
+  .quiz-box { margin-top:10px; border:1px solid var(--border); border-radius:8px; padding:10px; background:var(--panel-2); }
+  .quiz-stem { font-size:13px; line-height:1.6; margin-bottom:9px; }
+  .quiz-opts { display:flex; flex-direction:column; gap:6px; }
+  .quiz-opt { display:flex; align-items:flex-start; gap:7px; text-align:left; padding:7px 9px; font-size:12.5px; line-height:1.5; }
+  .quiz-opt .qo-key { flex:0 0 auto; font-weight:700; color:var(--muted); }
+  .quiz-opt.on { border-color:var(--accent); background:rgba(79,157,255,.14); }
+  .quiz-opt.right { border-color:var(--good); background:rgba(46,204,113,.16); }
+  .quiz-opt.picked { border-color:var(--bad); background:rgba(255,90,90,.14); }
+  .quiz-tip { margin-top:8px; font-size:11px; color:var(--muted); }
+  .quiz-actions { display:flex; gap:8px; margin-top:10px; }
+  .quiz-submit { background:var(--accent); color:#fff; border-color:var(--accent); font-weight:700; }
+  .quiz-submit:disabled { opacity:.45; cursor:not-allowed; }
+  .quiz-feedback { margin-top:10px; border-top:1px dashed var(--border); padding-top:9px; }
+  .quiz-feedback.hidden { display:none; }
+  .qf-head { font-weight:700; margin-bottom:6px; }
+  .qf-head.ok { color:var(--good); } .qf-head.no { color:var(--bad); }
+  .qf-ans { font-size:12px; color:var(--muted); margin-bottom:6px; }
+  .quiz-trophy { margin-top:8px; padding:6px 8px; border-radius:6px; background:rgba(245,166,35,.14);
+    border:1px solid var(--warn); font-size:12px; }
+  .det-chart { width:100%; height:150px; display:block; }
+
+  /* 学习档案 / 奖杯 */
+  .qs-btn { border-style:dashed; }
+  .qs-icon { font-size:12px; }
+  .tro-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(148px,1fr)); gap:6px; }
+  .tro { display:flex; flex-direction:column; gap:1px; padding:6px 8px; border:1px solid var(--border);
+    border-radius:6px; background:var(--panel-2); opacity:.55; }
+  .tro.got { opacity:1; border-color:var(--warn); background:rgba(245,166,35,.10); }
+  .tro-icon { font-size:15px; }
+  .tro-name { font-size:12px; font-weight:700; }
+  .tro-desc { font-size:10px; color:var(--muted); }
+  .kchip.mark-ok::after { content:'✓'; margin-left:3px; color:var(--good); }
+  .kchip.mark-wrong::after { content:'✗'; margin-left:3px; color:var(--bad); }
+</style>
+</head>
+<body>
+<div id="app">
+  <header id="topbar">
+    <div class="brand">MacroVille <span class="sub">微观城邦</span></div>
+    <div id="hud" class="hud"></div>
+    <div id="controls" class="controls"></div>
+  </header>
+  <nav id="tabs" class="tabs">
+    <div id="bc-status" class="bc-status" title="经济周期：点开看景气曲线与周期形状"></div>
+    <div id="cycle-bar" class="cycle-bar"></div>
+    <div id="tab-group" class="tab-group"></div>
+  </nav>
+  <main>
+    <section id="map-panel">
+      <div id="stage-bar"></div>
+      <div id="map-wrap">
+        <div id="map-tools" class="map-tools"></div>
+        <div id="city-grid"></div>
+        <div id="tile-info" class="tile-info hidden"></div>
+        <div id="map-legend" class="map-legend"></div>
+      </div>
+    </section>
+    <div id="splitter" class="splitter" title="拖动调整侧栏宽度"><span class="sp-grip"></span></div>
+    <aside id="side">
+      <div class="side-tabs">
+        <button class="st active" data-pane="policy">政策</button>
+        <button class="st" data-pane="dash">指标</button>
+        <button class="st" data-pane="know">图谱</button>
+      </div>
+      <div class="pane active" id="pane-policy"><div class="panel" id="policy"></div></div>
+      <div class="pane" id="pane-dash"><div class="panel" id="dashboard"></div></div>
+      <div class="pane" id="pane-know"><div class="panel" id="knowledge"></div></div>
+    </aside>
+  </main>
+</div>
+<div id="concept-modal" class="modal hidden"></div>
+
+<!-- 90 个经济学名词（由 src/data/glossary.ts 生成，勿手改） -->
+<script id="terms-data" type="application/json">[["opportunityCost","机会成本","micro",{"k":"month","n":0},1,"为得到某物而放弃的、价值最高的替代选项。","决定居民在工作与闲暇、消费与储蓄之间的取舍。",["laborSupply","savingsRate"],null],["supplyDemand","供需定律","micro",{"k":"month","n":0},1,"价格由供给与需求共同决定；供不应求涨价，供过于求降价。","是市场自动出清、价格自发形成的核心机制。",["demand","supply","equilibriumPrice"],null],["demand","需求","micro",{"k":"month","n":0},1,"在某一价格下，买方愿意且能够购买的数量。","价格越高需求越少；收入与偏好会把需求曲线整体移动。",["supplyDemand","elasticity","aggregateDemand"],null],["supply","供给","micro",{"k":"month","n":0},1,"在某一价格下，卖方愿意且能够提供的数量。","成本上升会减少供给；产能与库存决定短期供给弹性。",["supplyDemand","marginalCost","productivity"],null],["population","人口","micro",{"k":"month","n":0},1,"城市常驻居民总数。","决定劳动力与消费规模；满意度高低驱动迁入或迁出。",["migration","unemployment"],[[],["population"]]],["employmentRate","就业率","micro",{"k":"month","n":0},1,"就业人口占劳动力人口的比例。","企业招工与居民求职的匹配结果，直接影响家庭收入。",["unemployment","laborSupply"],[[],["employmentRate"]]],["unemployment","失业","micro",{"k":"month","n":0},1,"想工作却找不到岗位的人。","工资过高、需求不足或技能错配都会把人挤出岗位。",["employmentRate","naturalUnemployment"],null],["avgWage","平均工资","micro",{"k":"month","n":0},1,"在岗雇员的平均月薪。","由企业出价、最低工资与劳动供需共同决定。",["laborSupply","realWage"],[[],["avgWage"]]],["disposableIncome","可支配收入","micro",{"k":"month","n":0},1,"扣除税收后真正能花的钱。","决定家庭预算约束与生活水平。",["budgetConstraint","livingStandard"],[[],["disposableIncome"]]],["livingStandard","生活水平","micro",{"k":"month","n":0},1,"居民实际享受到的物质条件与主观感受。","由真实购买力、公共服务与就业安全感共同决定。",["realWage","happiness"],[[],["livingStandard"]]],["happiness","幸福度","micro",{"k":"month","n":0},1,"居民对生活的综合满意度，0-100。","低则人口外流、城市衰退；高则吸引移民迁入。",["livingStandard","migration"],[[],["happiness"]]],["laborSupply","劳动供给","micro",{"k":"month","n":0},1,"居民愿意提供的劳动总量，受工资、税后收入与偏好影响。","工资越高、税后收入越多，愿意工作的人越多。",["laborParticipation","unemployment"],[["laborParticipation"],[]]],["savingsRate","储蓄率","micro",{"k":"month","n":0},1,"收入中存起来而不是花掉的比例。","高储蓄增强抗风险能力，但会压低当期消费与需求。",["wealth","resilience"],[["savingsRate"],["wealth"]]],["consumptionPropensity","消费倾向","micro",{"k":"month","n":0},1,"拿到新增收入后愿意花掉的比例。","消费倾向越高，同样的收入能撬动越大的需求。",["consumption","aggregateDemand"],[["consumptionPropensity"],[]]],["laborParticipation","劳动力参与率","micro",{"k":"month","n":0},1,"劳动年龄人口中进入劳动力市场的比例。","参与率提高会同时增加岗位竞争与总产出。",["laborSupply","employmentRate"],[["laborParticipation"],[]]],["skillInvest","技能投入","micro",{"k":"month","n":0},1,"家庭投入时间与金钱提升自己的比例。","技能越高，单位产出与工资越高，但当期可支配收入变少。",["humanCapital","productivity"],[["skillInvest"],[]]],["riskAppetite","风险偏好","micro",{"k":"month","n":0},1,"面对不确定性时动用储蓄的意愿。","风险偏好高的人更敢消费，也更经不起失业冲击。",["resilience","consumptionPropensity"],[["riskAppetite"],[]]],["humanCapital","人力资本","micro",{"k":"leverEver","id":"skillInvest","op":">=","v":0.5},3,"凝结在人身上的技能与知识，是长期生产率的核心。","技能投入与研发补贴会持续抬高工资与产出。",["skillInvest","productivity"],null],["budgetConstraint","预算约束","micro",{"k":"peak","f":"cpi","v":102},3,"收入与价格共同划定的、可负担的消费组合边界。","工资涨、物价也涨时，预算约束未必真的放宽。",["disposableIncome","cpi"],null],["marginalUtility","边际效用","micro",{"k":"leverEver","id":"consumptionPropensity","op":">=","v":1.2},3,"多消费一单位商品带来的额外满足感。","边际效用递减，所以同样一笔钱，穷人用起来更幸福。",["diminishingReturns","livingStandard"],null],["diminishingReturns","边际报酬递减","micro",{"k":"leverEver","id":"expansion","op":">=","v":0.6},2,"其它投入不变时，持续增加单一投入，新增产出越来越少。","解释为什么只靠加人无法无限提高产量，必须靠技术与资本。",["marginalUtility","productivity"],null],["elasticity","价格弹性","micro",{"k":"leverEver","id":"markup","op":">=","v":0.5},2,"需求量对价格变化的敏感程度。","弹性大的商品涨价会迅速失去顾客，弹性小的则撑得住。",["demand","markup"],null],["substitutionEffect","替代效应","micro",{"k":"any","of":[{"k":"leverEver","id":"markup","op":">=","v":0.45},{"k":"peak","f":"cpi","v":106}]},3,"某商品变贵后，消费者转向更便宜的替代品。","企业涨价流失顾客，正是替代效应在起作用。",["elasticity","demand"],null],["equilibriumPrice","均衡价格","micro",{"k":"all","of":[{"k":"stage","n":1},{"k":"any","of":[{"k":"leverEver","id":"markup","op":"<=","v":0.15},{"k":"leverEver","id":"markup","op":">=","v":0.6}]}]},3,"需求量恰好等于供给量时的价格，市场既无短缺也无过剩。","本局里企业按售罄率与加价率锚反复试探，价格就是在逼近这个点。",["supplyDemand","avgPrice"],null],["consumerSurplus","消费者剩余","micro",{"k":"all","of":[{"k":"stage","n":1},{"k":"any","of":[{"k":"leverEver","id":"markup","op":"<=","v":0.15},{"k":"trough","f":"cpi","v":95}]}]},3,"消费者愿意支付的最高价与实际支付价之间的差额。","价格越低，居民获得的剩余越多，生活感受越好。",["producerSurplus","livingStandard"],null],["producerSurplus","生产者剩余","micro",{"k":"all","of":[{"k":"stage","n":1},{"k":"leverEver","id":"markup","op":">=","v":0.45}]},3,"企业实际售价高于其最低可接受价的部分。","近似企业利润，是扩产与创新的资金来源。",["consumerSurplus","avgProfit"],null],["sunkCost","沉没成本","micro",{"k":"all","of":[{"k":"stage","n":1},{"k":"peak","f":"unemploymentRate","v":0.08}]},4,"已经发生、无法收回的成本，不应影响当下决策。","提醒你：亏损企业裁员时不该纠结已投的厂房。",["entryExit"],null],["comparativeAdvantage","比较优势","micro",{"k":"leverEver","id":"tradeOpenness","op":">=","v":0.5},2,"各自生产机会成本更低的产品再交换，双方都能获益。","是城市间分工与贸易开放度的微观基础。",["opportunityCost","tradeOpenness"],null],["wealth","家庭财富","micro",{"k":"leverEver","id":"savingsRate","op":">=","v":0.35},3,"家庭累计下来的储蓄存量。","财富越厚，失业冲击越不致命，消费也越稳定。",["savingsRate","resilience"],[[],["wealth"]]],["resilience","抗风险缓冲","micro",{"k":"all","of":[{"k":"leverEver","id":"savingsRate","op":">=","v":0.3},{"k":"peak","f":"unemploymentRate","v":0.06}]},4,"用储蓄能撑过多少个月没有收入的日子。","缓冲越厚，失业带来的满意度崩塌越小。",["wealth","unemployment"],[[],["resilience"]]],["minWage","最低工资","micro",{"k":"stage","n":1},2,"企业必须支付的最低工资底线，保障劳动者基本收入。","抬高改善低收入者生活，过高则引发裁员或成本推动型涨价。",["laborSupply","unemployment","inflation"],[["minWage"],[]]],["markup","加价率","industrial",{"k":"stage","n":1},2,"企业在成本之上加价的幅度，决定售价与毛利。","加价越高利润越厚，但销量与需求会被挤出。",["avgPrice","elasticity"],[["markup"],[]]],["wageMultiplier","工资出价","industrial",{"k":"stage","n":1},2,"企业相对基准工资的出价倍数，用于抢人。","出价高能招到人，但会抬高成本与售价。",["avgWage","employmentRate"],[["wageMultiplier"],[]]],["expansion","扩产意愿","industrial",{"k":"stage","n":1},2,"盈利时把利润再投入产能的积极性。","扩产创造岗位，但过热会造成过剩与浪费。",["capacityUtil","investment"],[["expansion"],[]]],["rdInvest","研发投入","industrial",{"k":"stage","n":1},2,"投入研发以提升单位产出的比例。","研发抬生产率，长期看是工资增长的唯一来源。",["productivity","humanCapital"],[["rdInvest"],[]]],["inventoryStrategy","库存策略","industrial",{"k":"stage","n":1},2,"企业为应对需求波动预留的产出缓冲。","库存厚能扛住需求突增，也占用资金与仓储。",["inventory","supply"],[["inventoryStrategy"],[]]],["avgProfit","平均利润","industrial",{"k":"stage","n":1},2,"企业月度平均盈亏，决定它扩张还是收缩。","利润为正才扩产招人，长期为负就裁员退出。",["producerSurplus","entryExit"],[[],["avgProfit"]]],["capacityUtil","产能利用率","industrial",{"k":"stage","n":1},2,"实际用上的产能占全部产能的比例。","过高说明供不应求、该扩产；过低说明产能闲置。",["expansion","potentialOutput"],[[],["capacityUtil"]]],["avgPrice","平均售价","industrial",{"k":"stage","n":1},2,"市场上商品的平均成交价。","售价直接进 CPI，也决定居民的购买力。",["markup","cpi"],[[],["avgPrice"]]],["totalRevenue","总营收","industrial",{"k":"stage","n":1},2,"企业销售额的总和，近似城市产出规模。","营收增长是扩产与招人的前提。",["avgPrice","gdp"],[[],["totalRevenue"]]],["inventory","库存","industrial",{"k":"leverEver","id":"inventoryStrategy","op":">=","v":0.6},3,"企业已生产但尚未卖出的商品。","库存积压是需求走弱的先行信号，会迫使降价减产。",["inventoryStrategy","aggregateDemand"],null],["marginalCost","边际成本","industrial",{"k":"leverEver","id":"expansion","op":">=","v":0.6},3,"多生产一单位产品所增加的成本。","边际成本低于售价才值得继续扩产。",["supply","economiesOfScale"],null],["fixedCost","固定成本","industrial",{"k":"leverEver","id":"expansion","op":"<=","v":0.15},2,"与产量无关、必须照付的成本（厂房、设备）。","固定成本决定企业的盈亏平衡点，也是退出门槛。",["marginalCost","sunkCost"],null],["productivity","生产率","industrial",{"k":"leverEver","id":"rdInvest","op":">=","v":0.5},3,"单位投入能产出多少，是工资与物价的根本决定项。","生产率提高，同样的工资能买到更多东西。",["humanCapital","rdInvest"],null],["economiesOfScale","规模经济","industrial",{"k":"all","of":[{"k":"stage","n":1},{"k":"gt","f":"firms","v":70}]},3,"规模扩大后单位成本下降的现象。","大企业摊薄固定成本，因此更敢降价抢市场。",["marginalCost","marketStructure"],null],["entryExit","企业进入与退出","industrial",{"k":"all","of":[{"k":"stage","n":1},{"k":"peak","f":"unemploymentRate","v":0.08}]},4,"盈利吸引新企业进入，亏损迫使旧企业退出。","进出动态决定岗位数量与市场竞争强度。",["avgProfit","marketStructure"],null],["pollution","污染","industrial",{"k":"peak","f":"pollution","v":0.08},4,"工业生产与交通排放累积在地块上的负外部性。","污染压低周边居民满意度并拖累地价。",["externality","landValue"],null],["externality","外部性","industrial",{"k":"all","of":[{"k":"stage","n":1},{"k":"peak","f":"pollution","v":0.12}]},4,"一方行为对旁观者造成的、未经市场定价的影响。","污染是典型负外部性：企业排污，居民买单。",["pollution","publicSpend"],null],["landValue","地价","industrial",{"k":"peak","f":"landValue","v":1760},4,"地块的市场价值，由区位、配套、密度与污染共同决定。","高地价吸引高效用途，也把低效用途挤出市中心。",["density","landUse"],null],["density","开发密度","industrial",{"k":"all","of":[{"k":"stage","n":1},{"k":"gt","f":"builtTiles","v":300}]},3,"单位地块上承载的人口或经济活动强度。","密度高带来集聚红利，也带来拥挤与污染。",["landValue","agglomeration"],null],["amenity","公共服务配套","industrial",{"k":"all","of":[{"k":"stage","n":2},{"k":"leverEver","id":"publicSpend","op":">=","v":0.5}]},5,"学校、医院、水电等设施向周边辐射的宜居度。","配套越好，居民越满意，地价也越高。",["publicSpend","landValue"],null],["landUse","土地用途转化","industrial",{"k":"all","of":[{"k":"stage","n":2},{"k":"gt","f":"builtTiles","v":300}]},5,"地块在居民、商业、工业用途之间自发转换的过程。","临街且人满的住区会破墙开店，冷清商铺会退回住区。",["landValue","density"],null],["congestion","拥堵成本","industrial",{"k":"all","of":[{"k":"stage","n":2},{"k":"gt","f":"population","v":4680}]},5,"人口与产业聚集后，通勤、排队与拥挤带来的效率损失。","抵消一部分集聚红利，是大城市的必然代价。",["agglomeration","density"],null],["industrySubsidy","产业补贴","industrial",{"k":"stage","n":2},4,"政府定向给企业的补贴，用于刺激供给与就业。","补贴拉动产出与岗位，但吃掉财政、可能推高物价。",["aggregateSupply","fiscal"],[["industrySubsidy"],[]]],["marketStructure","市场结构","industrial",{"k":"all","of":[{"k":"stage","n":2},{"k":"gt","f":"firms","v":110}]},5,"市场上企业数量与竞争关系的格局。","企业越多竞争越充分，价格越贴近成本。",["monopolisticCompetition","entryExit"],null],["monopolisticCompetition","垄断竞争","industrial",{"k":"all","of":[{"k":"stage","n":2},{"k":"leverEver","id":"markup","op":">=","v":0.6}]},5,"很多卖家卖相似但有差异的产品，各自有一点定价权。","本局企业能自主加价，正是垄断竞争的典型形态。",["marketStructure","markup"],null],["supplyChain","产业链","industrial",{"k":"all","of":[{"k":"stage","n":2},{"k":"leverEver","id":"industrySubsidy","op":">=","v":0.25}]},5,"从原料到成品的多环节分工链条。","一个环节的短缺会沿着链条放大成全行业减产。",["cluster","aggregateSupply"],null],["tradeOpenness","贸易开放度","industrial",{"k":"stage","n":2},4,"城市与外部市场互通有无的程度。","开放放大总需求，也让本地企业面对外部竞争。",["comparativeAdvantage","aggregateDemand"],[["tradeOpenness"],[]]],["agglomeration","集聚效应","industrial",{"k":"stage","n":3},5,"企业与人口聚集在一起所产生的额外效率。","大城市生产率更高，但生活成本与拥堵同步上升。",["cluster","congestion"],null],["cluster","产业集群","industrial",{"k":"all","of":[{"k":"stage","n":3},{"k":"leverEver","id":"industrySubsidy","op":">=","v":0.3}]},5,"同类或关联企业扎堆形成的产业带。","集群放大知识溢出与配套效率，是补贴最有效的地方。",["agglomeration","supplyChain"],null],["gentrification","士绅化","industrial",{"k":"all","of":[{"k":"stage","n":3},{"k":"any","of":[{"k":"leverEver","id":"publicSpend","op":">=","v":0.6},{"k":"peak","f":"landValue","v":2400}]}]},5,"配套升级后地价上涨、原住居民被挤出的过程。","城市变好了，但最先住在这里的人反而住不起了。",["landValue","gini"],null],["gdp","GDP","macro",{"k":"stage","n":1},2,"一定时期内城市生产的全部最终产品与服务的价值。","衡量经济总量；由消费、投资与政府支出共同构成。",["aggregateDemand","totalRevenue"],[[],["gdp"]]],["cpi","CPI","macro",{"k":"stage","n":1},2,"居民消费的一篮子商品的价格指数，基期 100。","CPI 上升意味着同样的钱能买到的东西变少。",["inflation","realWage"],[[],["cpi"]]],["migration","人口迁移","macro",{"k":"peak","f":"population","v":2340},4,"居民因满意度差异在城市之间流入流出。","迁移是城市规模的直接驱动，也是居民用脚投票。",["population","happiness"],null],["consumption","消费","macro",{"k":"leverEver","id":"consumptionPropensity","op":">=","v":1.2},2,"居民购买商品与服务的支出，总需求的主体。","消费占比最高，储蓄率上升会直接压低它。",["aggregateDemand","consumptionPropensity"],null],["investment","投资","macro",{"k":"leverEver","id":"expansion","op":">=","v":0.6},3,"企业用于扩大产能与研发的支出。","投资把今天的储蓄变成明天的产能。",["expansion","aggregateDemand"],null],["inflation","通货膨胀","macro",{"k":"peak","f":"cpi","v":105},4,"物价总水平持续上涨的现象。","成本推动（工资、补贴）或需求拉动都会点燃它。",["cpi","deflation"],null],["deflation","通货紧缩","macro",{"k":"all","of":[{"k":"stage","n":1},{"k":"any","of":[{"k":"trough","f":"cpi","v":90},{"k":"phase","v":"depression"}]}]},3,"物价总水平持续下跌的现象。","通缩让债务变重、企业推迟投资，比温和通胀更难治。",["cpi","inflation"],null],["realWage","实际工资","macro",{"k":"any","of":[{"k":"peak","f":"cpi","v":103},{"k":"leverEver","id":"minWage","op":">=","v":8000}]},3,"名义工资扣除物价后的购买力。","名义工资涨 5%、物价涨 8%，实际工资其实在下降。",["avgWage","cpi","disposableIncome"],null],["urbanization","城市化","macro",{"k":"stage","n":2},4,"人口与产业向城市聚集、建成区向外扩张的过程。","城市化抬生产率，也带来拥堵、污染与高房价。",["agglomeration","migration"],null],["gini","基尼系数","macro",{"k":"all","of":[{"k":"stage","n":2},{"k":"peak","f":"gini","v":0.4}]},5,"衡量居民收入差距的指标，0 为完全平均，1 为绝对分化。","失业率上升与福利不足都会把它推高。",["welfare","happiness"],[[],["gini"]]],["treasury","财政余额","macro",{"k":"stage","n":2},4,"政府累计的收支结余，可能为负。","财政是公共服务的钱袋子，赤字会限制后续操作。",["fiscal","fiscalDeficit"],[[],["treasury"]]],["taxRate","税率","macro",{"k":"stage","n":2},4,"政府从收入中抽取的比例。","税收是公共服务与补贴的来源，过高会抑制活力。",["fiscal","lafferCurve"],[["taxRate"],["treasury"]]],["publicSpend","公共支出","macro",{"k":"stage","n":2},4,"政府用于基建、教育、医疗与治理的支出强度。","公共支出抬满意度与公共服务，也直接构成总需求。",["amenity","multiplier"],[["publicSpend"],[]]],["welfare","转移支付","macro",{"k":"stage","n":2},4,"政府向居民直接发放的补贴与救济。","福利托底低收入者与失业者，代价是财政压力。",["gini","fiscal"],[["welfare"],[]]],["eduSubsidy","研发补贴","macro",{"k":"stage","n":2},4,"政府补贴人力资本与研发支出的力度。","研发补贴抬技能与生产率，是长期增长的关键。",["humanCapital","productivity"],[["eduSubsidy"],[]]],["fiscal","财政政策","macro",{"k":"leverEver","id":"taxRate","op":">=","v":0.3},2,"政府用税收与支出调节总需求的整套手段。","你拧税率与公共支出的每一格，都是在做财政政策。",["taxRate","publicSpend"],null],["fiscalDeficit","财政赤字","macro",{"k":"trough","f":"treasury","v":0},3,"支出超过收入、财政余额转为负值。","赤字意味着政府在透支，后续公共服务会被迫削减。",["treasury","fiscal"],null],["multiplier","乘数效应","macro",{"k":"leverEver","id":"publicSpend","op":">=","v":0.5},3,"一笔支出在经济中循环放大，最终带动数倍产出。","公共支出乘数最直观：政府花的钱会变成居民的收入再花出去。",["publicSpend","aggregateDemand"],null],["aggregateDemand","总需求","macro",{"k":"all","of":[{"k":"stage","n":2},{"k":"any","of":[{"k":"leverEver","id":"publicSpend","op":">=","v":0.45},{"k":"leverEver","id":"tradeOpenness","op":">=","v":0.4}]}]},4,"消费 + 投资 + 政府支出 + 净出口的总和。","总需求不足则企业减产裁员，过旺则推高物价。",["consumption","aggregateSupply"],null],["aggregateSupply","总供给","macro",{"k":"all","of":[{"k":"stage","n":2},{"k":"leverEver","id":"industrySubsidy","op":">=","v":0.25}]},5,"城市在一定价格下能够提供的全部产出。","补贴、研发与生产率共同把总供给曲线往右推。",["productivity","aggregateDemand"],null],["crowdingOut","挤出效应","macro",{"k":"all","of":[{"k":"leverEver","id":"publicSpend","op":">=","v":0.5},{"k":"leverEver","id":"industrySubsidy","op":">=","v":0.3}]},3,"政府扩大支出占用资源，反而压低了私人部门活动。","钱花得越多，留给市场的资源越少，产出未必等比例增加。",["fiscal","aggregateDemand"],null],["naturalUnemployment","自然失业率","macro",{"k":"all","of":[{"k":"stage","n":2},{"k":"peak","f":"unemploymentRate","v":0.07}]},5,"经济正常运行下也存在的摩擦性与结构性失业。","它不会因为需求旺盛而消失，只能靠技能匹配与流动改善。",["unemployment","phillipsCurve"],null],["okunLaw","奥肯定律","macro",{"k":"all","of":[{"k":"stage","n":2},{"k":"peak","f":"unemploymentRate","v":0.1}]},5,"失业率每高出自然率 1%，产出大约损失 2%。","失业不只是个人悲剧，它直接抹掉城市的产出。",["unemployment","outputGap"],null],["phillipsCurve","菲利普斯曲线","macro",{"k":"all","of":[{"k":"peak","f":"cpi","v":105},{"k":"peak","f":"unemploymentRate","v":0.09}]},4,"短期内失业率与通胀此消彼长的关系。","想压低失业往往要容忍更高物价，反过来也一样。",["inflation","naturalUnemployment"],null],["businessCycle","经济周期","macro",{"k":"any","of":[{"k":"phase","v":"recession"},{"k":"phase","v":"depression"},{"k":"all","of":[{"k":"month","n":30},{"k":"stage","n":2}]}]},1,"经济在繁荣与衰退之间反复波动的节律。","周期由投资、库存与信心共同驱动，不会一直向上。",["outputGap","stagflation","boom","recession","depression","recovery"],null],["boom","繁荣","macro",{"k":"phase","v":"boom"},1,"周期的高涨阶段：需求旺盛、产能吃紧、物价抬头、企业抢着招人扩产。","繁荣时扩产与补贴会继续火上浇油；此时收紧，衰退会来得轻一些。",["businessCycle","outputGap","inflation"],null],["recession","衰退","macro",{"k":"phase","v":"recession"},2,"周期的下行段：需求转弱、库存积压，企业先停招人、再开始裁员。","衰退先表现为裁员与降薪，随后才轮到企业倒闭。",["businessCycle","depression","unemployment"],null],["depression","萧条","macro",{"k":"phase","v":"depression"},1,"周期的谷底：失业高企、物价低迷、企业成批退出、信心跌到最低。","谷底时资源大量闲置，扩张性财政的乘数最大，但赤字也跑得最快。",["businessCycle","recession","recovery","deflation"],null],["recovery","复苏","macro",{"k":"phase","v":"recovery"},2,"周期的上行段：库存出清、订单回暖，企业重新招人，产出缺口由负转正。","产能便宜、劳动力充裕，是最容易被人忽略、却最适合布局的阶段。",["businessCycle","depression","boom"],null],["accelerator","加速原理","macro",{"k":"all","of":[{"k":"stage","n":1},{"k":"peak","f":"cycleIndex","v":0.5}]},4,"需求的微小增长会引致投资成倍扩张，需求一停投资就断崖式回落。","它是把温和的存货波动放大成真正繁荣与衰退的引擎——把「扩产意愿」拧高，波动会更剧烈。",["investment","businessCycle","boom"],null],["automaticStabilizer","自动稳定器","macro",{"k":"all","of":[{"k":"any","of":[{"k":"leverEver","id":"welfare","op":">=","v":0.3},{"k":"leverEver","id":"taxRate","op":">=","v":0.3},{"k":"leverEver","id":"publicSpend","op":">=","v":0.5}]},{"k":"any","of":[{"k":"phase","v":"recession"},{"k":"phase","v":"depression"}]}]},3,"无需政府临时决策、能自动平抑波动的制度安排：累进税、失业救济、福利转移。","把福利或税率拧高，你会看到衰退的谷底被削平——代价是财政与长期增速。",["businessCycle","welfare","taxRate","depression"],null],["lafferCurve","拉弗曲线","macro",{"k":"all","of":[{"k":"leverEver","id":"taxRate","op":">=","v":0.4},{"k":"trough","f":"treasury","v":0}]},4,"税率过高会抑制税基，反而使税收收入下降。","把税率拉到 40% 以上再看财政，你就能亲手画出这条曲线。",["taxRate","fiscal"],null],["stagflation","滞胀","macro",{"k":"streak","id":"stagflation","cond":{"k":"all","of":[{"k":"gt","f":"unemploymentRate","v":0.08},{"k":"gt","f":"cpi","v":105}]},"n":3},5,"高通胀与高失业同时出现的糟糕组合。","成本推动型通胀叠加需求萎缩时会撞上它，常规手段两头不讨好。",["inflation","unemployment","phillipsCurve"],null],["potentialOutput","潜在产出","macro",{"k":"all","of":[{"k":"stage","n":3},{"k":"month","n":48}]},5,"资源充分利用时城市能生产的产出上限。","潜在产出由劳动力、资本与生产率决定，政策只能短期超越它。",["productivity","outputGap"],null],["outputGap","产出缺口","macro",{"k":"all","of":[{"k":"stage","n":3},{"k":"any","of":[{"k":"peak","f":"unemploymentRate","v":0.08},{"k":"lt","f":"outputGap","v":-0.05},{"k":"gt","f":"outputGap","v":0.05}]}]},5,"实际产出与潜在产出之间的差额。","缺口为正说明经济过热、通胀压力大；为负说明资源闲置。",["potentialOutput","businessCycle","accelerator"],null]]</script>
+
+<!-- 闯关题库：每个名词一道题（由 src/data/quiz.ts 生成，勿手改） -->
+<script id="quiz-data" type="application/json">[["opportunityCost","single","某人有一份月薪 8000 元的工作，现在打算辞职全职读研，每年学费与生活费共 40000 元。他读研一年的机会成本是：",["40000 元","96000 元","136000 元","56000 元"],[2],"机会成本 = 放弃的最高价值替代选项。既包括显性的学费生活费 4 万，也包括放弃的工资收入 9.6 万，合计 13.6 万。","中级经济师·经济基础知识·第一章 市场需求、供给与均衡价格"],["supplyDemand","single","在其他条件不变时，某商品的生产技术大幅进步，会导致该商品：",["需求曲线右移，价格上升","供给曲线右移，价格下降","供给曲线左移，价格上升","需求曲线左移，价格下降"],[1],"技术进步降低生产成本，供给增加、供给曲线右移，在需求不变时均衡价格下降、均衡数量增加。注意区分「供给量的变动」与「供给的变动」。","中级经济师·经济基础知识·第一章"],["demand","single","下列因素中，会使某种商品的需求曲线发生整体平移的是：",["该商品自身价格变动","消费者收入水平变动","该商品替代品价格变动","B 和 C 都会"],[3],"商品自身价格变动只引起「需求量的变动」（沿曲线移动）；收入、偏好、相关商品价格、预期、消费者数量变动才会使整条需求曲线平移。","中级经济师·经济基础知识·第一章"],["supply","single","短期内，影响某种商品供给弹性大小的最主要因素是：",["生产周期与生产能力调整的难易程度","消费者的偏好","该商品在预算中所占比重","替代品的可获得性"],[0],"供给弹性取决于生产者调整产量的难易：时间越长、要素越易获得，供给弹性越大。B、C、D 是影响需求弹性的因素。","中级经济师·经济基础知识·第一章"],["population","single","在其他条件不变的情况下，一个地区劳动年龄人口占比上升，通常会使该地区的：",["劳动力供给增加，潜在产出提高","劳动力需求立即同比例增加","自然失业率必然上升","物价水平必然下降"],[0],"劳动年龄人口占比上升扩大了劳动力供给，从而提高潜在产出；但需求不会自动同比例增加，反而可能带来就业压力。","中级经济师·经济基础知识·第五章 国民收入核算"],["employmentRate","single","某城市劳动年龄人口 100 万，其中就业人口 76 万，失业人口 4 万，其余不参与劳动力市场。该城市的就业率为：",["76%","95%","80%","79.2%"],[1],"就业率 = 就业人口 ÷ 劳动力人口（就业+失业）= 76 ÷ (76+4) = 95%。若除以劳动年龄人口则是劳动参与率口径，注意区分。","中级经济师·经济基础知识·第六章 失业与经济增长"],["unemployment","single","由于产业升级，传统行业的工人技能不匹配新兴岗位需求而长期找不到工作，这类失业属于：",["摩擦性失业","结构性失业","周期性失业","季节性失业"],[1],"结构性失业源于劳动力供给与需求在结构（技能、地区、产业）上的不匹配；周期性失业才是由总需求不足引起的。","中级经济师·经济基础知识·第六章"],["avgWage","single","在劳动力市场上，政府把最低工资标准提高到高于市场均衡工资的水平，最可能产生的直接后果是：",["所有劳动者收入都上升且就业增加","企业用工成本上升，低技能劳动者就业减少","劳动力供给减少","对就业没有任何影响"],[1],"高于均衡水平的最低工资会使企业用工成本上升、用工需求下降，同时吸引更多低技能劳动力进入市场，结果是低技能群体失业增加。","中级经济师·经济基础知识·第一章 / 第六章"],["disposableIncome","single","某居民税前工资收入 10000 元，缴纳个人所得税 1000 元、社会保险 800 元。其可支配收入为：",["10000 元","9000 元","8200 元","9200 元"],[2],"可支配收入 = 收入 − 个人所得税 − 社会保险等经常性转移支出 = 10000 − 1000 − 800 = 8200 元。它是消费与储蓄决策的起点。","中级经济师·经济基础知识·第五章"],["livingStandard","single","衡量居民生活水平时，最不适宜单独作为衡量指标的是：",["人均可支配收入","人均消费支出","名义工资总额","恩格尔系数"],[2],"名义工资总额没有扣除物价变动、没有考虑人口规模与家庭结构，不能反映真实生活水平；应结合实际购买力、人均口径与消费结构综合判断。","中级经济师·经济基础知识·第五章"],["happiness","single","在城市仿真中，居民满意度（幸福度）通常不作为以下哪一项的直接决定因素？",["人口迁入与迁出","消费意愿","企业是否扩大产能","对公共服务的评价"],[2],"满意度直接驱动人口迁移、消费与对公共服务的评价；企业扩产主要取决于利润、产能利用率与景气预期，与居民满意度只是间接相关。","中级经济师·经济基础知识·第六章"],["laborSupply","single","关于个人劳动供给曲线的形状，正确的说法是：",["一定向右上方倾斜","工资上升到一定程度后可能向后弯曲","与工资完全无关","一定向右下方倾斜"],[1],"工资上升有替代效应（多工作）和收入效应（多闲暇）。工资较低时替代效应占优，曲线右上方倾斜；工资高到一定程度后收入效应占优，曲线向后弯曲。","中级经济师·经济基础知识·第二章 消费者行为分析"],["savingsRate","single","一个经济体把储蓄率长期维持在很高水平，短期内最可能出现：",["消费与总需求受抑，产出增速放缓","消费与总需求同步大幅上升","物价立即大幅上涨","失业率立即降为零"],[0],"储蓄是收入的漏出。储蓄率过高会压低当期消费与总需求，在需求约束下产出增速放缓；长期看储蓄转化为投资又会提高潜在产出，这是短期与长期的经典权衡。","中级经济师·经济基础知识·第五章"],["consumptionPropensity","single","某家庭新增可支配收入 1000 元，其中用于消费 800 元。其边际消费倾向（MPC）与边际储蓄倾向（MPS）分别为：",["0.8 与 0.2","0.2 与 0.8","0.8 与 1.25","1.25 与 0.8"],[0],"MPC = ΔC/ΔY = 800/1000 = 0.8；MPS = 1 − MPC = 0.2，二者之和恒等于 1。","中级经济师·经济基础知识·第五章 简单国民收入决定"],["laborParticipation","single","劳动力参与率的计算公式是：",["就业人口 ÷ 劳动年龄人口","劳动力人口 ÷ 劳动年龄人口","失业人口 ÷ 劳动力人口","就业人口 ÷ 总人口"],[1],"劳动力参与率 =（就业人口+失业人口）÷ 劳动年龄人口，衡量有多少人「进入」劳动力市场；失业率的分母才是劳动力人口。","中级经济师·经济基础知识·第六章"],["skillInvest","single","家庭增加教育培训投入，在经济学上主要被归类为：",["消费支出","人力资本投资","转移支付","存货投资"],[1],"教育培训能提升未来生产率与收入，属于人力资本投资；它与物质资本投资一样具有当期付出、未来收益的特征。","中级经济师·经济基础知识·第三章 生产和成本理论"],["riskAppetite","single","风险偏好较高的家庭，在收入不变时通常表现为：",["储蓄率更高、消费更保守","更愿意动用储蓄进行当期消费","完全不持有任何储蓄","消费与储蓄都不变"],[1],"风险偏好高意味着更看重当期效用、更愿意承担未来不确定性，因此更倾向于动用储蓄消费；风险厌恶者则相反，会持有更厚的预防性储蓄。","中级经济师·经济基础知识·第二章"],["humanCapital","single","下列属于人力资本的是：",["工厂的机器设备","劳动者通过培训掌握的技能","企业持有的现金","已建成的高速公路"],[1],"人力资本是凝结在劳动者身上的知识、技能与健康；机器设备与基础设施属于物质资本，现金属于金融资产。","中级经济师·经济基础知识·第三章"],["budgetConstraint","single","在只有两种商品、收入与价格既定的情况下，消费者预算线的斜率绝对值等于：",["两种商品的边际替代率","两种商品的价格之比","两种商品的效用之比","消费者的收入水平"],[1],"预算线斜率绝对值 = P₁/P₂。消费者效用最大化的均衡条件是边际替代率 MRS 等于该价格比。","中级经济师·经济基础知识·第二章"],["marginalUtility","single","消费者实现效用最大化的均衡条件是：",["两种商品的边际效用相等","两种商品的总效用相等","边际替代率等于两种商品的价格之比","边际效用为零"],[2],"均衡条件为 MRS₁₂ = P₁/P₂，等价于 MU₁/P₁ = MU₂/P₂——即每一元钱花在两种商品上带来的边际效用相等，而非边际效用本身相等。","中级经济师·经济基础知识·第二章"],["diminishingReturns","single","边际报酬递减规律成立的前提条件是：",["所有生产要素同比例增加","其他生产要素投入不变，只增加某一种要素","技术水平持续进步","生产规模不断缩小"],[1],"边际报酬递减指的是在技术水平和其他要素投入不变时，连续等量增加某一种要素，其带来的产量增量终将递减。它与规模报酬是不同层面的问题。","中级经济师·经济基础知识·第三章"],["elasticity","single","某商品价格上涨 10% 导致需求量下降 15%，其需求价格弹性系数与总收益变化为：",["1.5，总收益增加","1.5，总收益减少","0.67，总收益增加","0.67，总收益减少"],[1],"Ed = 15%/10% = 1.5 > 1，属富有弹性。富有弹性时涨价会使总收益减少，降价才会增加总收益。","中级经济师·经济基础知识·第一章"],["substitutionEffect","single","某种商品价格上升后，消费者转而购买更多其替代品，这一现象称为：",["收入效应","替代效应","棘轮效应","示范效应"],[1],"替代效应指相对价格变化导致消费者用相对便宜的商品替代变贵的商品；收入效应则是价格变化改变了实际购买力所引起的数量调整。","中级经济师·经济基础知识·第二章"],["equilibriumPrice","single","某商品市场价格高于均衡价格时，市场会出现：",["供不应求，价格趋于上升","供过于求，价格趋于下降","供需相等，价格不变","供给曲线左移"],[1],"高于均衡价格时供给量大于需求量，出现过剩，卖方竞争导致价格回落，市场自发向均衡收敛——这正是「看不见的手」的作用机制。","中级经济师·经济基础知识·第一章"],["consumerSurplus","single","消费者剩余是指：",["消费者实际支付的价格","消费者愿意支付的最高价格与实际支付价格之差","生产者获得利润","市场价格与生产成本之差"],[1],"消费者剩余 = 支付意愿 − 实际支付，衡量消费者从交易中获得的净福利；对应的生产者剩余则是价格与边际成本之差。","中级经济师·经济基础知识·第一章"],["producerSurplus","single","在完全竞争市场长期均衡时，生产者剩余在数值上等于：",["零","经济利润","固定成本","总收益"],[1],"长期均衡时价格等于边际成本也等于平均成本最低点，经济利润为零；短期中生产者剩余表现为价格超过边际成本的部分，即经济利润。","中级经济师·经济基础知识·第四章 市场结构理论"],["sunkCost","single","关于沉没成本，理性决策者应当：",["在决策时充分考虑已发生的沉没成本","在决策时不考虑沉没成本，只比较边际收益与边际成本","把沉没成本计入固定成本分摊","只有在亏损时才考虑沉没成本"],[1],"沉没成本是已经发生且无法收回的支出，与当前决策无关。理性决策只对未来的边际收益与边际成本作比较，俗话即「不要为打翻的牛奶哭泣」。","中级经济师·经济基础知识·第三章"],["comparativeAdvantage","single","甲国生产 1 单位粮食需 4 小时、1 单位布需 8 小时；乙国分别需 6 小时和 6 小时。按比较优势理论：",["甲国应出口粮食，乙国应出口布","甲国应出口布，乙国应出口粮食","两国不会发生贸易","甲国两种产品都出口"],[0],"甲国粮食机会成本 0.5 单位布（4/8），乙国为 1 单位布（6/6），甲国在粮食上有比较优势；乙国布的机会成本 1 单位粮，低于甲的 2，故出口布。","中级经济师·经济基础知识·第十章 国际贸易理论与政策"],["wealth","single","下列属于家庭「存量」概念的是：",["月工资收入","家庭持有的存款余额","本月消费支出","本月缴纳的税额"],[1],"存量是某一时点上的数量（存款余额、房产、负债），流量是某一时期内的数量（收入、消费、纳税）。收入是流量，财富是存量。","中级经济师·经济基础知识·第五章"],["resilience","single","家庭抗风险缓冲能力最直接体现在：",["月收入的高低","持有流动性资产能覆盖几个月的基本开支","技能水平","是否拥有房产"],[1],"抗风险能力取决于「流动性储备 ÷ 必要开支」的倍数关系，而不是收入绝对值。高收入但高负债、无储蓄的家庭同样脆弱。","中级经济师·经济基础知识·第五章"],["minWage","single","关于最低工资标准的经济影响，说法正确的是：",["一定会降低所有劳动者的福利","在买方垄断的劳动力市场上，适度提高最低工资可能同时提高工资与就业","对就业没有任何影响","只会影响高收入群体"],[1],"在竞争性市场上高于均衡的最低工资会减少就业；但在买方垄断（企业有工资决定权）的市场中，适度的最低工资可以同时提高工资与就业量，这是劳动力市场买方垄断模型的经典结论。","中级经济师·经济基础知识·第六章"],["markup","single","企业在成本之上按一定比例加成定价，这种做法主要出现在：",["完全竞争市场","具有市场势力的不完全竞争市场","任何市场都无法实现","只有在政府对价格管制时"],[1],"完全竞争厂商是价格接受者，只能按 P=MC 定价；加成定价（P = 成本 ×(1+加成率)）意味着企业拥有一定的定价权，属于不完全竞争市场的行为。","中级经济师·经济基础知识·第四章"],["wageMultiplier","single","企业把工资出价提高到高于同行的水平（效率工资），其经济动机通常是：",["纯粹增加成本，没有任何收益","降低离职率、提高劳动效率与产出质量","降低产品价格","减少税收"],[1],"效率工资理论认为，高于市场出清水平的工资能降低怠工与流失、提高生产率，从而使单位劳动成本反而下降。","中级经济师·经济基础知识·第六章"],["expansion","single","企业决定扩大产能时，最应优先考虑的约束条件是：",["只要盈利就应该无限扩产","预期需求能否持续消化新增产能","厂房面积是否最大","竞争对手是否也在扩产"],[1],"扩产决策的核心是预期需求的持续性。若需求仅仅是周期性的短期繁荣，扩产会在需求回落时形成过剩产能与沉淀成本，这正是「加速原理」导致波动放大的原因。","中级经济师·经济基础知识·第三章"],["rdInvest","single","从长期看，研发投入对一个企业最直接的作用是：",["立刻降低当期成本","提升全要素生产率，使同样投入产出更多","必然提高产品售价","减少税收负担"],[1],"研发通过技术进步与工艺改进提高全要素生产率（TFP），使相同要素投入产生更多产出，是长期增长的根本来源，但短期表现为当期成本增加。","中级经济师·经济基础知识·第三章 / 第六章"],["inventoryStrategy","single","企业主动增加库存缓冲，在经济上行期与下行期分别会：",["上行期加剧短缺，下行期缓解衰退","上行期放大繁荣，下行期加深衰退","对周期没有任何影响","总是平滑经济波动"],[1],"存货投资的顺周期性是「基钦周期」（约 40 个月）的成因：景气时企业乐观备货推高产出，衰退时被迫清库存进一步压低产出，因此高库存策略会放大波动。","中级经济师·经济基础知识·第七章 经济周期"],["avgProfit","single","在国民经济核算中，企业利润总额与下列哪一项的关系最直接？",["等于总产出减中间投入","等于收入减去成本后的余额，是营业盈余的组成部分","等于总营收","等于固定资产折旧"],[1],"收入法 GDP 由劳动者报酬、生产税净额、固定资产折旧和营业盈余构成，企业利润是营业盈余的核心部分，而非总产出本身。","中级经济师·经济基础知识·第五章"],["capacityUtil","single","产能利用率持续偏低通常预示着：",["经济过热，应立即加息","资源闲置，存在产出负缺口，物价承压","企业应当立即大幅扩产","劳动力市场供不应求"],[1],"产能利用率低意味着资源闲置、实际产出低于潜在产出（负产出缺口），通缩压力大于通胀压力；此时扩产反而加剧过剩。","中级经济师·经济基础知识·第七章"],["avgPrice","single","用「简单算术平均」计算多企业产品的平均价格，最主要的缺陷是：",["计算过于复杂","没有考虑不同产品的产量或销售额权重","只能用于服务业","会低估通货膨胀"],[1],"价格指数应按销售额或产量加权（如拉氏指数、帕氏指数）。简单算术平均会让小众高价商品过度影响结果，不能反映真实的物价水平变化。","中级经济师·经济基础知识·第五章"],["totalRevenue","single","企业总收益等于：",["利润加固定成本","产品价格乘以销售数量","产品价格乘以产量","销售额减去成本"],[1],"总收益 = 价格 × 实际销售数量。注意「乘以产量」只在产销平衡时成立，未售出的产出形成存货而非收益。","中级经济师·经济基础知识·第三章"],["inventory","single","在国民经济核算的支出法中，企业存货的增加应当：",["不计入任何项目","计入存货投资（属于投资的一部分）","计入消费","计入政府支出"],[1],"支出法 GDP = C + I + G + (X−M)，其中的 I 包括固定资产投资与存货投资。企业未售出而增加的存货被视为企业「自己买下了」，计入投资。","中级经济师·经济基础知识·第五章"],["marginalCost","single","企业利润最大化的产量决策应满足：",["边际收益等于边际成本","边际收益大于边际成本越多越好","平均成本最低","总成本最小"],[0],"通用法则为 MR = MC。在完全竞争下 MR=P，故等价于 P=MC；平均成本最低点对应的是生产效率而非利润最大化产量。","中级经济师·经济基础知识·第三章"],["fixedCost","single","在短期生产中，固定成本的特点是：",["随产量增加而增加","不随产量变化，即使产量为零也必须支付","只存在于制造业","长期中也保持不变"],[1],"短期内固定成本（厂房、设备折旧等）与产量无关；但长期中一切成本都是可变的，不存在长期固定成本。","中级经济师·经济基础知识·第三章"],["productivity","single","劳动生产率提高在宏观层面的直接表现是：",["单位劳动投入创造更多产出","就业人数必然增加","工资必然下降","物价必然上升"],[0],"劳动生产率 = 产出 ÷ 劳动投入。它是长期生活水平提高的根本来源；但短期内若需求跟不上，生产率提高也可能伴随结构性失业。","中级经济师·经济基础知识·第六章"],["economiesOfScale","single","规模经济指的是：",["企业数量增加导致成本下降","企业自身产量扩大导致长期平均成本下降","城市人口增加导致物价下降","政府补贴导致成本下降"],[1],"规模经济（内部）是单个企业产量扩大引发长期平均成本下降；企业聚集带来的成本下降属于「集聚经济」（外部规模经济），二者主体不同。","中级经济师·经济基础知识·第三章"],["entryExit","single","在完全竞争市场的长期调整中，企业自由进入与退出的结果是：",["所有企业获得正的经济利润","经济利润趋于零，价格等于平均成本最低点","价格持续上涨","市场集中度不断提高"],[1],"有正利润则新企业进入、供给增加、价格下降；有亏损则企业退出。长期均衡时经济利润为零，P = MC = AC 最低点。","中级经济师·经济基础知识·第四章"],["pollution","single","某工厂排放污染使下游居民健康受损却无需赔偿，这在经济学上属于：",["正外部性","负外部性","公共物品问题","信息不对称"],[1],"负外部性指经济主体的行为给他人带来未计入市场交易的成本。矫正手段包括庇古税、排污权交易、明晰产权（科斯定理）等。","中级经济师·经济基础知识·第八章 市场失灵与政府干预"],["externality","single","矫正负外部性的「庇古税」指的是：",["对污染企业发放补贴","按边际外部成本对污染者征税，使外部成本内部化","禁止一切工业生产","由居民自行承担污染"],[1],"庇古税把污染的边际外部成本内部化为企业私人成本，使其产量达到社会最优水平。与之相对，科斯方案强调明晰产权下的私人谈判。","中级经济师·经济基础知识·第八章"],["landValue","single","城市中心区地价远高于郊区，最根本的原因是：",["中心区土地质量更好","区位稀缺性与可达性带来的级差地租","政府强制规定","中心区建筑成本更高"],[1],"地价由区位决定的级差地租驱动：可达性越高、集聚收益越大的地块，使用者愿意支付的地租越高，形成由中心向外递减的地价梯度。","中级经济师·经济基础知识·第三章 / 第八章"],["density","single","城市开发密度提高可能带来的双重效应是：",["只提高集聚收益，没有代价","集聚收益上升，但拥堵、污染等规模不经济也随之上升","只增加污染","对经济没有任何影响"],[1],"密度提高带来劳动力池共享、知识溢出与基础设施规模经济；同时带来拥堵、噪音、污染与生活成本上升，城市最优规模取决于两种力量的平衡。","中级经济师·经济基础知识·第八章"],["amenity","single","学校、医院、供水等公共服务设施属于：",["纯粹的私人物品","具有外部收益的准公共物品","俱乐部物品中的纯私人部分","只由市场自发提供"],[1],"公共服务具有非排他性或正外部性，私人供给会低于社会最优水平，因此通常由政府提供或补贴；完全非竞争非排他的才是纯公共物品。","中级经济师·经济基础知识·第八章"],["landUse","single","在城市规划中把工业用地布置在城市主导风向的下风向，主要是为了：",["降低运输成本","减少工业污染对居住区的影响","提高地价","便于企业扩张"],[1],"工业布局需考虑风向（下风向）、水流（下游）与地形，把污染型用地放在主导风向的下风向与河流下游，是控制负外部性空间扩散的常规手段。","中级经济师·经济基础知识·第八章"],["congestion","single","城市规模扩大带来的拥堵成本，本质上属于：",["企业的内部成本","个体行为施加给他人的负外部性","政府财政支出","家庭储蓄的漏出"],[1],"每个新增出行者都会降低他人通行速度，却不会为此付费，这是典型的负外部性。拥堵费、限行等政策正是为了内部化这一成本。","中级经济师·经济基础知识·第八章"],["industrySubsidy","single","政府向特定产业发放补贴，长期看最需要警惕的风险是：",["补贴一定会导致企业立即倒闭","形成过剩产能与对补贴的依赖，降低资源配置效率","补贴会使物价必然下降","补贴对财政没有影响"],[1],"补贴扭曲相对价格，可能保护低效企业、诱发产能过剩与寻租，退出时还会引发就业与债务问题；因此补贴通常需要设定期限与绩效条件。","中级经济师·经济基础知识·第八章 / 第九章 财政"],["marketStructure","single","下列市场结构中，企业进入壁垒最高的是：",["完全竞争","垄断竞争","寡头垄断","完全垄断"],[3],"完全垄断由单一厂商构成且无相近替代品，进入壁垒最高（法定、规模、技术或要素控制）；寡头次之，垄断竞争较低，完全竞争不存在壁垒。","中级经济师·经济基础知识·第四章"],["monopolisticCompetition","single","垄断竞争市场的长期均衡特征是：",["价格等于边际成本，经济利润为零","价格高于边际成本，经济利润为零","价格高于边际成本且存在正经济利润","价格等于平均可变成本"],[1],"垄断竞争厂商因产品差异而向下倾斜的需求曲线，均衡时 P > MC（存在过剩能力）；但自由进入使长期经济利润趋于零。","中级经济师·经济基础知识·第四章"],["supplyChain","single","产业链上下游企业集聚布局，主要获得的好处是：",["完全消除市场风险","降低交易成本与运输成本，加快信息与技术扩散","必然形成垄断","使税收自动增加"],[1],"产业链集聚降低了中间投入的运输与协调成本，促进了面对面交流与知识溢出，是区域竞争力的主要来源；但它不消除需求风险。","中级经济师·经济基础知识·第三章 / 第八章"],["tradeOpenness","single","提高贸易开放度对一个城市经济的典型影响是：",["扩大市场与需求，同时更易受外部冲击传导","只带来好处、没有任何风险","必然导致产业空心化","使物价完全不受外部影响"],[0],"开放度提高既扩大了销路与要素来源，也把外部周期与价格波动传导进来，是一把「放大器」：收益与波动同时变大。","中级经济师·经济基础知识·第十章"],["agglomeration","single","集聚效应指的是：",["企业合并成为一家大公司","经济活动在空间上集中所产生的额外效率","人口均匀分散分布","政府集中配置资源"],[1],"集聚效应（外部规模经济）来自劳动力池共享、中间投入共享与知识溢出三类机制，是城市存在与扩张的根本经济性原因。","中级经济师·经济基础知识·第三章"],["cluster","single","与一般集聚相比，「产业集群」更强调：",["企业数量多","同一产业及相关机构在地理上集中并形成分工协作网络","城市人口规模大","政府主导的园区建设"],[1],"产业集群强调相关企业、供应商、服务机构与高校在空间上形成网络化的分工协作，而非仅仅是企业在同一地点堆砌。","中级经济师·经济基础知识·第三章"],["gentrification","single","城市更新中出现的「士绅化」通常指：",["城市人口整体减少","高收入群体迁入导致地价房价上涨、原低收入居民被迫外迁","工业向郊区迁移","公共设施全面衰退"],[1],"士绅化（绅士化）是中心城区改造升级后地租上升、原居民被置换的现象，它提高了空间效率，但也可能带来居住隔离与分配问题。","中级经济师·经济基础知识·第八章"],["gdp","single","下列关于 GDP 的说法，正确的是：",["GDP 是一国（或地区）所有常住单位在一定时期内生产的最终产品和服务的价值总和","GDP 包括全部中间产品的价值","家庭主妇的家务劳动计入 GDP","股票买卖的成交额全额计入 GDP"],[0],"GDP 核算最终产品与服务以避免重复计算；家务劳动、地下经济不计入；股票买卖只是资产转移，不计入 GDP（仅佣金计入）。","中级经济师·经济基础知识·第五章"],["cpi","single","CPI 持续上升、但上升速度逐步放缓，这种情况通常被称为：",["通货紧缩","通货膨胀率下降但仍在通胀","恶性通货膨胀","滞胀"],[1],"物价水平上升速度放缓属于「通胀率回落」（disinflation），物价仍在涨；物价水平绝对下降才是通货紧缩（deflation）。","中级经济师·经济基础知识·第七章"],["migration","single","人口从农村流向城市的根本经济动因通常是：",["城市气候更好","城乡预期收入差距与就业机会差异","农村土地质量下降","政府强制搬迁"],[1],"托达罗模型指出，迁移决策取决于城乡预期收入差距（城市工资 × 就业概率）与迁移成本的比较，而非单纯的工资差距。","中级经济师·经济基础知识·第六章"],["consumption","single","凯恩斯的绝对收入假说认为，消费主要取决于：",["当期绝对收入水平","一生的永久收入","过去的最高收入","利率水平"],[0],"凯恩斯认为消费随当期可支配收入增加而增加，但增量递减（边际消费倾向递减）。弗里德曼的永久收入假说与莫迪利安尼的生命周期假说才是跨期视角。","中级经济师·经济基础知识·第五章"],["investment","single","在简单凯恩斯模型中，投资乘数的大小取决于：",["边际消费倾向，MPC 越大乘数越大","政府税收的固定数额","人口增长率","汇率水平"],[0],"投资乘数 k = 1/(1−MPC) = 1/MPS。边际消费倾向越高，每一轮支出中漏出为储蓄的比例越小，累积放大效应越强。","中级经济师·经济基础知识·第五章"],["inflation","single","由工资、原材料等生产成本普遍上升推动的通货膨胀属于：",["需求拉上型通胀","成本推动型通胀","结构性通胀","输入型通胀"],[1],"成本推动型通胀源于供给侧的工资与原材料成本上升，其典型后果是产出下降与物价上升并存，即「滞胀」，这是它与需求拉上型通胀的关键区别。","中级经济师·经济基础知识·第七章"],["deflation","single","通货紧缩最典型的危害是：",["物价便宜，消费者普遍受益","债务人负担加重、需求推迟，形成「债务—通缩」螺旋","企业利润必然大幅上升","政府税收必然增加"],[1],"通缩使实际债务负担加重、消费者推迟购买、企业利润下滑并裁员，形成费雪所说的债务—通缩螺旋，危害往往甚于温和通胀。","中级经济师·经济基础知识·第七章"],["realWage","single","名义工资上涨 5%，同期 CPI 上涨 8%，则实际工资：",["上涨 3%","下降约 2.8%","上涨 13%","保持不变"],[1],"实际工资 ≈ 名义工资 ÷ 物价指数。(1.05/1.08) − 1 ≈ −2.78%，即实际购买力下降约 2.8%。判断生活水平必须剔除物价。","中级经济师·经济基础知识·第七章"],["urbanization","single","衡量城市化水平最常用的指标是：",["城市建成区面积","城镇人口占总人口的比重","城市 GDP 总量","城市数量"],[1],"城市化率 = 城镇常住人口 ÷ 总人口，是人口意义上的城市化指标；建成区面积与灯光强度等只是辅助的空间度量。","中级经济师·经济基础知识·第六章"],["gini","single","关于基尼系数，正确的说法是：",["取值在 0 到 1 之间，数值越大分配越不均","取值在 0 到 100 之间，数值越大分配越平均","数值越小分配越不均","与收入分配无关"],[0],"基尼系数介于 0（完全平均）与 1（完全不均）之间，国际上通常把 0.4 作为收入分配差距的警戒线。","中级经济师·经济基础知识·第九章"],["treasury","single","政府财政出现赤字时，最基本的弥补方式是：",["发行国债","直接增发货币","提高最低工资","降低物价"],[0],"弥补赤字的常规手段是发行国债（借债）；我国预算法规定地方财政不得赤字，中央赤字通过国债弥补，中央银行不得直接透支。","中级经济师·经济基础知识·第九章 财政"],["taxRate","single","在其他条件不变时，提高税率对税基的典型影响是：",["税基完全不受影响","税率过高会抑制经济活动，导致税基缩小","税基必然扩大","税基先缩小后消失"],[1],"拉弗曲线刻画了税率与税收收入的倒 U 型关系：税率超过某一点后，抑制劳动与投资的负效应超过增收效应，税收收入反而下降。","中级经济师·经济基础知识·第九章"],["publicSpend","single","政府增加公共支出以拉动经济，其效果受限于：",["乘数大小与是否存在挤出效应","只要支出就一定能等比例增加产出","人口规模","企业数量"],[0],"财政扩张的效果取决于支出乘数（与 MPC 相关）与挤出效应（政府借款抬高利率、挤占私人投资）；资源已充分利用时，扩张只会推高物价而非产出。","中级经济师·经济基础知识·第九章"],["welfare","single","政府提高失业救济与福利转移支付，对经济周期的作用是：",["自动稳定器：衰退时托住需求，繁荣时随支出减少而降温","只会加大经济波动","对经济周期没有任何作用","只在繁荣期发挥作用"],[0],"失业救济与累进税属于「内在稳定器」：衰退时领取人数自动增加、税负自动下降，从而缓冲可支配收入的下降，无需新的立法即可平抑波动。","中级经济师·经济基础知识·第九章"],["eduSubsidy","single","政府增加研发与人力资本补贴，最主要的收益体现在：",["当期财政余额立即改善","长期提高潜在产出与全要素生产率","当期物价立即下降","短期消费立即大幅增加"],[1],"研发与教育补贴在当期是财政支出，但通过人力资本积累与技术进步提高潜在产出，属于典型的「短期成本、长期收益」型政策。","中级经济师·经济基础知识·第六章 / 第九章"],["fiscal","multi","下列属于财政政策工具的有：",["税收","政府购买性支出","转移支付","法定存款准备金率"],[0,1,2],"税收、政府购买与转移支付是财政政策的三大工具；法定存款准备金率、再贴现率与公开市场业务属于货币政策工具，注意区分主管部门与工具类型。","中级经济师·经济基础知识·第九章"],["fiscalDeficit","single","财政赤字率通常指：",["财政赤字与 GDP 的比值","财政赤字与财政收入之比","债务余额与 GDP 之比","财政支出与财政收入之比"],[0],"赤字率 = 赤字额 ÷ GDP，国际常用 3% 作为参考警戒线；债务余额与 GDP 之比是「负债率」，二者口径不同。","中级经济师·经济基础知识·第九章"],["multiplier","single","若边际消费倾向为 0.75，政府增加 100 亿元购买支出，理论上可带动的国民收入增量约为：",["100 亿元","133 亿元","400 亿元","750 亿元"],[2],"政府购买乘数 = 1/(1−MPC) = 1/0.25 = 4，故 100 × 4 = 400 亿元。注意税收乘数为负且绝对值小于购买乘数。","中级经济师·经济基础知识·第五章"],["aggregateDemand","single","下列因素中，会使总需求曲线向右移动的是：",["物价水平下降","政府减税、企业投资意愿增强","生产成本上升","本币大幅升值抑制出口"],[1],"物价水平变化只引起沿总需求曲线的移动；减税、投资意愿增强、货币供给增加、出口改善等才会使整条 AD 曲线右移。","中级经济师·经济基础知识·第五章"],["aggregateSupply","single","长期总供给曲线呈垂直形状，其经济学含义是：",["价格不影响产出，长期产出由要素与技术决定","价格越高产出越多","长期中产出可以无限增长","长期中价格固定不变"],[0],"长期中价格与工资充分灵活，产出由劳动、资本、技术与制度决定的潜在产出水平决定，需求扩张只会推高价格、不改变长期产出。","中级经济师·经济基础知识·第五章"],["crowdingOut","single","「挤出效应」指的是：",["政府支出增加导致私人投资减少","政府支出增加导致物价下降","出口增加导致进口减少","消费增加导致储蓄减少"],[0],"政府扩大支出若通过借款融资，会抬高利率或占用资源，从而挤压私人投资，使扩张性财政的效果被部分抵消，故称「挤出」。","中级经济师·经济基础知识·第九章"],["naturalUnemployment","single","自然失业率是指：",["经济中完全没有失业时的失业率","充分就业状态下的摩擦性与结构性失业率之和","周期性失业的比率","政府规定的失业率上限"],[1],"自然失业率 = 摩擦性失业 + 结构性失业，是经济在长期中无法消除的失业水平；周期性失业是实际失业率超出自然失业率的部分，需靠需求管理消除。","中级经济师·经济基础知识·第六章"],["okunLaw","single","奥肯定律描述的是：",["失业率变动与实际产出变动之间的反向经验关系","通胀与失业的交替关系","税率与税收的关系","储蓄与投资的关系"],[0],"奥肯定律指出失业率每高于自然失业率 1 个百分点，实际 GDP 大约低于潜在 GDP 2~3 个百分点，刻画的是劳动力闲置与产出损失的数量关系。","中级经济师·经济基础知识·第六章"],["phillipsCurve","single","关于菲利普斯曲线，正确的说法是：",["短期内失业与通胀存在此消彼长的替代关系","长期中这种替代关系依然稳定成立","它描述的是税率与税收的关系","它意味着可以同时长期实现零失业与零通胀"],[0],"短期菲利普斯曲线向下倾斜；但引入预期后，长期菲利普斯曲线是位于自然失业率处的垂直线——长期中扩张需求只会推高通胀，不能降低失业。","中级经济师·经济基础知识·第七章"],["businessCycle","multi","关于经济周期，下列说法正确的有：",["经济周期通常包括繁荣、衰退、萧条、复苏四个阶段","基钦周期是约 40 个月的存货周期","经济周期可以被完全消除","投资波动是周期中最不稳定的组成部分"],[0,1,3],"经济周期是市场经济中产出围绕趋势反复波动的现象，无法被彻底消除，只能被政策平滑。按长度可分为基钦（存货，约 40 个月）、朱格拉（设备投资，约 9~10 年）、库兹涅茨（建筑，约 20 年）与康德拉季耶夫（技术，约 50~60 年）。","中级经济师·经济基础知识·第七章"],["boom","single","经济处于周期「繁荣」阶段时，最典型的特征组合是：",["需求旺盛、产能吃紧、物价抬头、失业下降","需求萎缩、库存积压、物价下跌","失业上升且物价上涨","产出缺口为负"],[0],"繁荣期对应正的产出缺口：资源被充分利用甚至过度利用，失业率低于自然率，通胀压力上升，投资加速扩张。","中级经济师·经济基础知识·第七章"],["recession","single","经济学上对「衰退」最常用的操作性定义是：",["连续两个季度实际 GDP 负增长","物价水平一次性下跌","失业率上升 0.1 个百分点","股市下跌 10%"],[0],"「技术性衰退」的通行标准是一国实际 GDP 连续两个季度环比负增长；更全面的判定还会看就业、收入与工业产出等月度指标。","中级经济师·经济基础知识·第七章"],["depression","single","与一般衰退相比，「萧条」阶段最突出的特征是：",["持续时间更长、下滑更深，伴随物价低迷与大面积企业退出","物价快速上涨","失业率低于自然失业率","投资加速扩张"],[0],"萧条是周期谷底：产出缺口为负且幅度大，失业高企、物价承压、企业成批退出、信心跌至最低点，往往需要外部冲击或强力政策才能走出。","中级经济师·经济基础知识·第七章"],["recovery","single","复苏阶段最先出现的信号通常是：",["库存出清与订单回暖，随后企业才恢复招人","物价大幅上涨","失业率立即降到零","政府削减支出"],[0],"复苏由存货出清与需求边际改善启动，企业先恢复产能利用率、再恢复招聘，因此就业的改善往往滞后于产出，即「无就业复苏」。","中级经济师·经济基础知识·第七章"],["accelerator","single","「加速原理」说明的是：",["产出需求的变动会引起投资更大幅度的同向变动","投资的变动会引起产出同比例变动","消费随收入同比例变动","物价随货币供给同比例变动"],[0],"加速数 v = 资本存量变化 ÷ 产出变化。由于资本存量远大于年产出，产出的小幅增长会带来投资的大幅增长，需求一停投资便断崖回落，这是周期被放大的关键机制。","中级经济师·经济基础知识·第七章"],["automaticStabilizer","single","下列制度中，属于经济「内在稳定器」的是：",["累进所得税、失业救济、农产品价格维持制度","央行公开市场操作","政府临时出台的基建刺激计划","出口退税的一次性调整"],[0],"内在稳定器（自动稳定器）无需政府临时决策即可自动发挥作用：繁荣时税收自动多收、救济自动减少，衰退时相反。货币政策操作与临时性刺激不属于自动稳定器。","中级经济师·经济基础知识·第九章"],["lafferCurve","single","拉弗曲线说明：",["税率越高，税收收入一定越多","存在某个税率水平，超过后提高税率反而使税收收入减少","税收与税率无关","税率为零时税收最多"],[1],"拉弗曲线呈倒 U 型：税率过低税收少，税率过高则抑制劳动与投资、缩小税基，税收收入反而下降。它强调的并非「减税总能增收」，而是税率存在临界点。","中级经济师·经济基础知识·第九章"],["stagflation","single","「滞胀」指的是：",["高通胀与高失业同时并存","低通胀与低失业并存","产出高速增长且物价稳定","物价下降且失业下降"],[0],"滞胀通常由成本推动型供给冲击（如能源价格暴涨）引起：总供给曲线左移导致物价上升与产出下降并存，使需求管理政策陷入两难。","中级经济师·经济基础知识·第七章"],["potentialOutput","single","潜在产出水平主要取决于：",["物价水平","劳动、资本、技术与制度等供给侧因素","政府当期的购买支出","消费者的信心"],[1],"潜在产出是资源充分利用时的产出上限，由要素投入数量、质量与全要素生产率决定。需求政策只能短期让实际产出偏离潜在产出，不能长期提高潜在产出本身。","中级经济师·经济基础知识·第六章"],["outputGap","single","当产出缺口为正（实际产出 > 潜在产出）时，最可能出现的局面是：",["资源过度利用，通胀压力上升","失业率大幅上升","物价持续下跌","企业成批倒闭"],[0],"正缺口意味着经济过热：产能与劳动力被过度使用，工资与物价上涨压力加大，通常伴随经常账户恶化，此时应采取紧缩性政策。","中级经济师·经济基础知识·第七章"]]</script>
+
+<script>
+/* ═══════════════ 1. 名词图谱数据 ═══════════════ */
+const TERMS = JSON.parse(document.getElementById('terms-data').textContent).map(a => ({
+  key:a[0], name:a[1], chapter:a[2], req:a[3], tier:a[4] || 1, def:a[5], effect:a[6],
+  related:a[7] || [], unlocks: a[8] ? { levers:a[8][0], metrics:a[8][1] } : null
+}));
+const CH_LABEL = { micro:'微观经济学', industrial:'中观 · 产业经济学', macro:'宏观经济学' };
+const termByKey = k => TERMS.find(t => t.key === k);
+const termOk = k => state.unlocked.includes(k);
+const tierOf = k => { const t = termByKey(k); return t ? (t.tier || 1) : 1; };
+// 第 N 轮只放出第 N 层；计划轮次走完后全部开放（作为通关后的自由探索）
+const tierOpen = tier => (state.cycle.round >= state.cycle.roundsPlanned ? true : tier <= state.cycle.round);
+const metricGate = m => TERMS.find(t => t.unlocks && t.unlocks.metrics.includes(m));
+const leverGate  = l => TERMS.find(t => t.unlocks && t.unlocks.levers.includes(l));
+
+/* 闯关题库：每个名词一道题，题型/难度参考中级经济师《经济基础知识》 */
+const QUIZZES = JSON.parse(document.getElementById('quiz-data').textContent).map(a => ({
+  key:a[0], type:a[1], stem:a[2], options:a[3], answer:a[4], explain:a[5], source:a[6]
+}));
+const quizByKey = k => QUIZZES.find(q => q.key === k);
+const quizScoreOf = q => (q.type === 'multi' ? 20 : 10);
+const TYPE_LABEL = { single:'单选题', multi:'多选题', judge:'判断题' };
+
+/* ═══════════════ 1b. 解锁条件求值（与真实工程同一套数据格式）═══════════════
+   名词不再「到第 N 个月自动出现」。每个名词带一条条件，判的是两件事：
+   你亲手把旋钮拧到了哪儿（leverEver）＋ 这些决策把城市带成了什么样（峰值/谷值/连续月数）。 */
+const STAGE_NAMES = ['村落级', '集镇级', '城市级', '都会级'];
+const ORIENT_NAMES = { balanced:'均衡型', industrial:'工业型', commercial:'商贸型', tech:'科创型', eco:'宜居型' };
+// 经济周期四阶段：解锁条件可以直接判「城市正处在哪个阶段」
+const PHASE_META = {
+  boom:      { name:'繁荣', icon:'🔥', desc:'需求旺盛、订单排到几个月后，企业抢着招人和扩产，物价抬头。',
+               hint:'产能与物价都在往上顶，此时加税或收紧补贴能给经济降温，但会牺牲增速。' },
+  recession: { name:'衰退', icon:'📉', desc:'需求转弱，库存开始积压，企业先停止招人、再开始裁员。',
+               hint:'裁员先于倒闭发生。此时加大公共支出与福利能托住需求，但会消耗财政。' },
+  depression:{ name:'萧条', icon:'🥶', desc:'谷底。失业高企、物价低迷、企业成批退出，信心跌到最低点。',
+               hint:'资源大量闲置。此时扩张性财政的乘数最大，但赤字也会跑得最快。' },
+  recovery:  { name:'复苏', icon:'🌱', desc:'库存出清、订单回暖，企业重新招人，产出缺口由负转正。',
+               hint:'最容易被人忽略、却最适合布局的阶段：产能便宜、劳动力充裕。' },
+};
+const BC_ORDER = ['boom', 'recession', 'depression', 'recovery'];
+const FIELD_LABEL = { month:'存续月数', population:'人口', employmentRate:'就业率', unemploymentRate:'失业率',
+  avgWage:'平均工资', cpi:'CPI', gdp:'GDP', treasury:'财政余额', gini:'基尼系数', happiness:'幸福度',
+  firms:'企业数', pollution:'平均污染', amenity:'公共服务水平', landValue:'平均地价', builtTiles:'建成地块',
+  bankruptcies:'累计倒闭企业', poorShare:'入不敷出家庭占比', maxLandValue:'最高地块单价',
+  vacancyRate:'岗位空缺率', lossFirmShare:'亏损企业占比', wealthTop10:'最富 10% 财富份额',
+  outputGap:'产出缺口', cycleIndex:'景气指数', potentialOutput:'潜在产出' };
+const PCT_F = new Set(['employmentRate','unemploymentRate','gini','pollution','amenity',
+  'poorShare','vacancyRate','lossFirmShare','wealthTop10','outputGap']);
+function fmtField(f, v) {
+  if (typeof v !== 'number' || !Number.isFinite(v)) return '—';
+  if (f === 'cycleIndex') return (v >= 0 ? '+' : '') + v.toFixed(2);
+  if (PCT_F.has(f)) return (v * 100).toFixed(Math.abs(v) < 0.02 ? 1 : 0) + '%';
+  if (f === 'bankruptcies') return Math.round(v) + ' 家';
+  if (f === 'month' || f === 'builtTiles' || f === 'firms') return String(Math.round(v));
+  // 单位口径与 src/data/units.ts 一致：钱=元、人口=人、地价=元/㎡、指数=点
+  if (f === 'avgWage') return yuanMo(v);
+  if (f === 'landValue' || f === 'maxLandValue') return landPrice(v);
+  if (f === 'cpi') return points(v);
+  if (f === 'happiness') return v.toFixed(0) + ' 分';
+  if (f === 'population') return people(v);
+  if (f === 'gdp' || f === 'treasury' || f === 'potentialOutput') return yuan(v);
+  if (Math.abs(v) >= 10000) return (v / 10000).toFixed(1) + ' 万';
+  return v.toFixed(0);
+}
+const LEVER_LABEL = { taxRate:['税率',1], minWage:['最低工资','money'], publicSpend:['公共支出',1],
+  industrySubsidy:['产业补贴',1], eduSubsidy:['研发补贴',1], tradeOpenness:['贸易开放度',1], welfare:['福利支出',1],
+  savingsRate:['储蓄率',1], consumptionPropensity:['消费倾向',1], laborParticipation:['劳动力参与率',1],
+  skillInvest:['技能投入',1], riskAppetite:['风险偏好',1], markup:['加价率',1], wageMultiplier:['工资出价',2],
+  expansion:['扩产意愿',1], rdInvest:['研发投入',1], inventoryStrategy:['库存策略',1] };
+function fmtLever(id, v) {
+  const m = LEVER_LABEL[id] || [id, 0];
+  if (m[1] === 1) return (v * 100).toFixed(0) + '%';
+  if (m[1] === 2) return v.toFixed(2) + ' 倍';
+  if (m[1] === 'money') return '¥' + Math.round(v).toLocaleString('zh-CN') + '/月';
+  return v.toFixed(0);
+}
+const leverName = id => (LEVER_LABEL[id] || [id])[0];
+
+function reqMet(r, c) {
+  if (!r) return false;
+  switch (r.k) {
+    case 'month': return c.month >= r.n;
+    case 'stage': return c.stageIdx >= r.n;
+    case 'gt': return c[r.f] >= r.v;
+    case 'lt': return c[r.f] <= r.v;
+    case 'peak': return (c.peak[r.f] === undefined ? c[r.f] : c.peak[r.f]) >= r.v;
+    case 'trough': return (c.trough[r.f] === undefined ? c[r.f] : c.trough[r.f]) <= r.v;
+    case 'lever': { const v = c.levers[r.id]; return v === undefined ? false : (r.op === '>=' ? v >= r.v : v <= r.v); }
+    case 'leverEver': { const v = r.op === '>=' ? c.leverMax[r.id] : c.leverMin[r.id];
+      return v === undefined ? false : (r.op === '>=' ? v >= r.v : v <= r.v); }
+    case 'streak': return (c.streak[r.id] || 0) >= r.n && reqMet(r.cond, c);
+    case 'round': return c.round >= r.n;
+    case 'orient': return c.orientation === r.v;
+    case 'phase': return c.cyclePhase === r.v;
+    case 'gap': { const g = c.outputGap || 0;
+      if (r.cmp === '>=') return g >= r.n; if (r.cmp === '<=') return g <= r.n;
+      if (r.cmp === '>') return g > r.n; return g < r.n; }
+    case 'all': return r.of.every(x => reqMet(x, c));
+    case 'any': return r.of.some(x => reqMet(x, c));
+  }
+  return false;
+}
+function reqText(r) {
+  if (!r) return '达成特定条件';
+  switch (r.k) {
+    case 'month': return r.n <= 0 ? '开局即可见' : '城市存续满 ' + r.n + ' 个月';
+    case 'stage': return '城市发展到' + STAGE_NAMES[r.n];
+    case 'round': return '进入第 ' + r.n + ' 轮循环';
+    case 'orient': return '把城市带成「' + ORIENT_NAMES[r.v] + '」定位';
+    case 'gt': return FIELD_LABEL[r.f] + ' 达到 ' + fmtField(r.f, r.v) + ' 以上';
+    case 'lt': return FIELD_LABEL[r.f] + ' 降到 ' + fmtField(r.f, r.v) + ' 以下';
+    case 'peak': return '让 ' + FIELD_LABEL[r.f] + ' 冲到过 ' + fmtField(r.f, r.v);
+    case 'trough': return '让 ' + FIELD_LABEL[r.f] + ' 跌到过 ' + fmtField(r.f, r.v);
+    case 'lever': return '把「' + leverName(r.id) + '」保持在 ' + fmtLever(r.id, r.v) + (r.op === '>=' ? ' 以上' : ' 以下');
+    case 'leverEver': return '亲手把「' + leverName(r.id) + '」调到 ' + fmtLever(r.id, r.v) + (r.op === '>=' ? ' 以上' : ' 以下');
+    case 'streak': return reqText(r.cond) + '，并连续维持 ' + r.n + ' 个月';
+    case 'phase': return '让城市进入经济周期的「' + (PHASE_META[r.v] || { name:r.v }).name + '」阶段';
+    case 'gap': return '让产出缺口' + (r.cmp === '>=' || r.cmp === '>' ? '扩大到 ' : '收窄到 ') + (r.n * 100).toFixed(0) + '%';
+    case 'all': return r.of.map(reqText).join('，且');
+    case 'any': return r.of.map(reqText).join(' 或 ');
+  }
+  return '达成特定条件';
+}
+function reqHint(r, c) {
+  if (!r) return '';
+  if (reqMet(r, c)) return reqText(r);
+  switch (r.k) {
+    case 'gt': case 'lt': return reqText(r) + '（当前 ' + fmtField(r.f, c[r.f]) + '）';
+    case 'peak': return reqText(r) + '（历史最高 ' + fmtField(r.f, c.peak[r.f] === undefined ? c[r.f] : c.peak[r.f]) + '）';
+    case 'trough': return reqText(r) + '（历史最低 ' + fmtField(r.f, c.trough[r.f] === undefined ? c[r.f] : c.trough[r.f]) + '）';
+    case 'month': return reqText(r) + '（当前第 ' + c.month + ' 个月）';
+    case 'stage': return reqText(r) + '（当前' + STAGE_NAMES[c.stageIdx] + '）';
+    case 'round': return reqText(r) + '（当前第 ' + c.round + ' 轮）';
+    case 'orient': return reqText(r) + '（当前「' + ORIENT_NAMES[c.orientation] + '」）';
+    case 'lever': return reqText(r) + '（当前 ' + fmtLever(r.id, c.levers[r.id] || 0) + '）';
+    case 'leverEver': { const v = r.op === '>=' ? c.leverMax[r.id] : c.leverMin[r.id];
+      return v === undefined ? reqText(r) + '（你还没动过这个旋钮）' : reqText(r) + '（你调到过 ' + fmtLever(r.id, v) + '）'; }
+    case 'streak': return reqText(r.cond) + '（已连续 ' + (c.streak[r.id] || 0) + ' / ' + r.n + ' 个月）';
+    case 'phase': return reqText(r) + '（当前「' + (PHASE_META[c.cyclePhase] || { name:'—' }).name + '」）';
+    case 'gap': return reqText(r) + '（当前 ' + ((c.outputGap || 0) * 100).toFixed(1) + '%）';
+    case 'all': { for (const x of r.of) if (!reqMet(x, c)) return reqHint(x, c); return reqText(r); }
+    case 'any': return r.of.map(x => reqText(x)).join(' 或 ');
+  }
+  return reqText(r);
+}
+
+function reqProgress(r, c) {
+  const k = v => Math.max(0, Math.min(1, v));
+  if (!r) return 0;
+  switch (r.k) {
+    case 'month': return k(r.n <= 0 ? 1 : c.month / r.n);
+    case 'stage': return k((c.stageIdx + 1) / (r.n + 1));
+    case 'gt': return k(r.v === 0 ? 1 : c[r.f] / r.v);
+    case 'lt': return k(r.v === 0 ? 0 : Math.min(1, (r.v * 2 - c[r.f]) / r.v));
+    case 'peak': return k((c.peak[r.f] === undefined ? c[r.f] : c.peak[r.f]) / (r.v || 1));
+    case 'trough': { const cur = c.trough[r.f] === undefined ? c[r.f] : c.trough[r.f];
+      return cur <= r.v ? 1 : k(r.v === 0 ? 0 : Math.min(1, 1 - Math.abs(cur) / Math.abs(r.v) + 0.5)); }
+    case 'lever': { const v = c.levers[r.id] || 0; return k(r.op === '>=' ? v / (r.v || 1) : 1 - v / (r.v || 1)); }
+    case 'leverEver': { const v = r.op === '>=' ? c.leverMax[r.id] : c.leverMin[r.id];
+      return v === undefined ? 0 : (r.op === '>=' ? k(v / (r.v || 1)) : 1); }
+    case 'streak': return k((c.streak[r.id] || 0) / r.n);
+    case 'round': return k(c.round / r.n);
+    case 'orient': return c.orientation === r.v ? 1 : 0;
+    case 'phase': return c.cyclePhase === r.v ? 1 : 0;
+    case 'gap': { const g = c.outputGap || 0;
+      return r.cmp === '>=' || r.cmp === '>' ? k(Math.max(0, g) / Math.max(0.01, Math.abs(r.n))) : (g <= r.n ? 1 : k(Math.max(0, 1 - Math.abs(g) / Math.max(0.01, Math.abs(r.n))))); }
+    case 'all': return r.of.length ? Math.min(...r.of.map(x => reqProgress(x, c))) : 1;
+    case 'any': return r.of.length ? Math.max(...r.of.map(x => reqProgress(x, c))) : 0;
+  }
+  return 0;
+}
+
+/* 玩家痕迹：拧过的旋钮极值 + 指标峰值/谷值 + 连续月数 */
+const tracking = { leverMax:{}, leverMin:{}, peak:{}, trough:{}, streak:{} };
+const NUM_FIELDS = ['month','population','employmentRate','unemploymentRate','avgWage','cpi','gdp','treasury',
+  'gini','happiness','firms','pollution','amenity','landValue','builtTiles',
+  'bankruptcies','poorShare','maxLandValue','vacancyRate','lossFirmShare','wealthTop10',
+  'cycleIndex','outputGap'];
+function tileAvg() {
+  let built = 0, pol = 0, am = 0, val = 0, maxVal = 0;
+  for (const t of tiles) if (t.dev) {
+    built++; pol += t.pollution; am += t.amenity; val += t.value;
+    if (t.value > maxVal) maxVal = t.value;
+  }
+  return { built, pollution: built ? pol / built : 0, amenity: built ? am / built : 0,
+    landValue: built ? val / built : 0, maxLandValue: maxVal };
+}
+// 个体层面的涌现量：预览页没有逐户/逐企业数据，用聚合量做等价近似，
+// 保证「同一个条件在预览页与真实工程里判的是同一个量」。
+function emergeStats() {
+  // 缓冲月数：存款能覆盖几个月开销（¥18 万 / ¥7,400 ≈ 24 个月 → 极少数家庭入不敷出）
+  const cover = state.savings / Math.max(1, state.cons);
+  const poor = Math.max(0, Math.min(1, 0.5 - cover / 12 * 0.5 + (1 - state.emp) * 0.5));
+  const loss = state.firmProfit < 0 ? Math.min(1, 0.35 + (-state.firmProfit) / 4000)
+    : Math.max(0, 0.12 - state.firmProfit / 60000);
+  return {
+    bankruptcies: state.bankruptcies || 0,
+    poorShare: poor,
+    maxLandValue: tileAvg().maxLandValue,
+    // 岗位空缺率与失业率互为镜像：劳动市场越紧，招不满的岗位越多。
+    // 原实现用「1 − 产能利用率」顶替，把「产能闲置」错当成「招不到人」，
+    // 会读出「失业率 14% 却有 43% 岗位空着」这种自相矛盾的数字。
+    // 预览页没有逐企业的招聘台账，只能按劳动市场松紧反推；真实引擎是按 vacancy/capacity 直接统计的。
+    vacancyRate: Math.max(0, Math.min(0.9, 0.10 + (state.emp - 0.94) * 2.2)),
+    lossFirmShare: loss,
+    wealthTop10: Math.min(0.9, 0.16 + state.gini * 0.9),
+  };
+}
+function buildCtx() {
+  const a = tileAvg();
+  const em = emergeStats();
+  return {
+    month: state.t, population: state.pop, employmentRate: state.emp, unemploymentRate: 1 - state.emp,
+    avgWage: state.wage, cpi: state.cpi, gdp: state.gdp, treasury: state.treasury,
+    gini: state.gini, happiness: state.happy, firms: state.firms,
+    pollution: a.pollution, amenity: a.amenity, landValue: a.landValue, builtTiles: a.built,
+    bankruptcies: em.bankruptcies, poorShare: em.poorShare, maxLandValue: em.maxLandValue,
+    vacancyRate: em.vacancyRate, lossFirmShare: em.lossFirmShare, wealthTop10: em.wealthTop10,
+    stageIdx: tierOfStage(state.peak),
+    round: state.cycle.round, orientation: state.orientation,
+    cyclePhase: (state.business || {}).phase, outputGap: (state.business || {}).outputGap || 0,
+    cycleIndex: (state.business || {}).index || 0, potentialOutput: (state.business || {}).potentialOutput || 0,
+    levers: Object.assign({}, gov, hp, fp),
+    leverMax: tracking.leverMax, leverMin: tracking.leverMin,
+    peak: tracking.peak, trough: tracking.trough, streak: tracking.streak
+  };
+}
+function updateTracking() {
+  const c = buildCtx();
+  for (const f of NUM_FIELDS) {
+    const v = c[f];
+    if (typeof v !== 'number' || Number.isNaN(v)) continue;
+    tracking.peak[f] = Math.max(tracking.peak[f] === undefined ? v : tracking.peak[f], v);
+    tracking.trough[f] = Math.min(tracking.trough[f] === undefined ? v : tracking.trough[f], v);
+  }
+  for (const id in c.levers) {
+    const v = c.levers[id];
+    tracking.leverMax[id] = Math.max(tracking.leverMax[id] === undefined ? v : tracking.leverMax[id], v);
+    tracking.leverMin[id] = Math.min(tracking.leverMin[id] === undefined ? v : tracking.leverMin[id], v);
+  }
+}
+let streakCache = null;
+function collectStreaks() {
+  if (streakCache) return streakCache;
+  const out = [], seen = new Set();
+  const walk = (r) => {
+    if (!r) return;
+    if (r.k === 'streak') { if (!seen.has(r.id)) { seen.add(r.id); out.push({ id:r.id, cond:r.cond }); } walk(r.cond); return; }
+    if (r.of) r.of.forEach(walk);
+  };
+  TERMS.forEach(t => walk(t.req));
+  streakCache = out;
+  return out;
+}
+// 每月结算一次；也用于玩家刚拧完旋钮时的即时结算（advanceStreak=false）
+//
+// 节奏控制：一次只点亮一个，且两次之间至少隔 UNLOCK_GAP 个月。
+// 玩家反馈过"一下解锁一批看不过来"，所以这里宁可慢，也要让每个概念都带得上它的来由。
+const UNLOCK_GAP = 2;
+function runUnlocks(advanceStreak) {
+  updateTracking();
+  let c = buildCtx();
+  if (advanceStreak) {
+    for (const s of collectStreaks()) {
+      tracking.streak[s.id] = reqMet(s.cond, c) ? (tracking.streak[s.id] || 0) + 1 : 0;
+    }
+  }
+  c = buildCtx();
+  if (state.t - state.cycle.lastUnlockMonth < UNLOCK_GAP) return [];
+  // 候选：本轮开放的层里、条件已满足的；按层级由浅入深取第一个
+  const cands = TERMS.filter(t =>
+    !state.unlocked.includes(t.key) && tierOpen(t.tier || 1) && reqMet(t.req, c));
+  if (!cands.length) return [];
+  cands.sort((a, b) => (a.tier || 1) - (b.tier || 1) || TERMS.indexOf(a) - TERMS.indexOf(b));
+  const t = cands[0];
+  state.unlocked.push(t.key);
+  state.cycle.lastUnlockMonth = state.t;
+  return [{ key:t.key, name:t.name, reason:reqText(t.req), tier:t.tier || 1 }];
+}
+// 开局点亮最浅的一批基础词（留上限，其余全部在游戏里逐个解锁）
+const SEED_LIMIT = 8;
+function seedUnlocks() {
+  const c = buildCtx();
+  const out = [];
+  for (const t of TERMS) {
+    if (out.length >= SEED_LIMIT) break;
+    if (state.unlocked.includes(t.key)) continue;
+    if ((t.tier || 1) !== 1) continue;
+    if (reqMet(t.req, c)) { state.unlocked.push(t.key); out.push(t); }
+  }
+  state.cycle.lastUnlockMonth = 0;
+  return out;
+}
+
+/* ── 循环式玩法：个人 → 企业 → 政府 → 回到个人 ── */
+const PHASE_ORDER = ['household', 'firm', 'gov'];
+const PHASE_LABEL = { household:'个人视角', firm:'企业视角', gov:'政府视角' };
+const SWITCH_NEW = 10, SWITCH_ROUND = 14;
+function cycleProgress() {
+  const c = state.cycle;
+  const avail = PHASE_ORDER.filter(p => unlockedPersp().includes(p));
+  const unvisited = avail.filter(p => !c.visited.includes(p));
+  return {
+    round: c.round, roundsPlanned: c.roundsPlanned, phase: c.phase, phaseMonths: c.phaseMonths,
+    needMonths: Math.max(0, (unvisited.length ? SWITCH_NEW : SWITCH_ROUND) - c.phaseMonths),
+    finished: c.round >= c.roundsPlanned && unvisited.length === 0
+  };
+}
+// 兜底：慢节奏蓝图可能很久长不到中等城市，政府视角迟迟不解锁。
+// 本轮已走过两个视角且累计够久，就允许进入下一轮，不让玩家永远停在第一轮。
+const ROUND_FALLBACK = 60;
+function tickCycle() {
+  const c = state.cycle;
+  c.phaseMonths += 1;
+  if (typeof c.roundMonths !== 'number') c.roundMonths = 0;
+  c.roundMonths += 1;
+  const avail = PHASE_ORDER.filter(p => unlockedPersp().includes(p));
+  if (!avail.length) return null;
+  const allUnlocked = avail.length === PHASE_ORDER.length;
+  const unvisited = avail.filter(p => !c.visited.includes(p));
+  if (c.phaseMonths < (unvisited.length ? SWITCH_NEW : SWITCH_ROUND)) return null;
+  if (unvisited.length) {
+    c.phase = unvisited[0]; c.phaseMonths = 0;
+    if (!c.visited.includes(c.phase)) c.visited.push(c.phase);
+    return { kind:'phase', phase:c.phase, round:c.round };
+  }
+  // 三个视角全解锁才算真的走完；早期版本会在第 14 个月就"进入第 2 轮"，轮次毫无意义
+  const canAdvance = allUnlocked || (avail.length >= 2 && c.roundMonths >= ROUND_FALLBACK);
+  if (!canAdvance) { c.phase = avail[0]; c.phaseMonths = 0; c.visited = [avail[0]]; return null; }
+  if (c.round >= c.roundsPlanned) { c.phaseMonths = 0; return null; }
+  c.round += 1; c.visited = [avail[0]]; c.phase = avail[0]; c.phaseMonths = 0; c.roundMonths = 0;
+  return { kind:'round', phase:c.phase, round:c.round };
+}
+function markPhase(p) {
+  state.cycle.phase = p;
+  if (!state.cycle.visited.includes(p)) state.cycle.visited.push(p);
+}
+// 城市定位：政策偏好的涌现结果
+const ORIENT_INFO = {
+  balanced:['⚖️','均衡型','各项政策都没走极端，城市按自己的节奏长成综合型。'],
+  industrial:['🏭','工业型','产业补贴长期偏高，工厂与就业岗位堆起来，代价是污染与拥挤。'],
+  commercial:['🛒','商贸型','贸易开放度高，商业地块繁荣、物价随外部需求波动。'],
+  tech:['🔬','科创型','研发补贴持续投入，生产率与工资爬升，但短期利润被摊薄。'],
+  eco:['🌳','宜居型','公共支出高、工业弱，公共服务与满意度领先，增长偏慢。']
+};
+function evaluateOrientation() {
+  const sc = [
+    ['industrial', gov.industrySubsidy * 2.5 + (1 - gov.publicSpend) * 0.4],
+    ['commercial', gov.tradeOpenness * 2.5],
+    ['tech', gov.eduSubsidy * 2.5],
+    ['eco', gov.publicSpend * 1.8 + (gov.welfare || 0) * 1.6]
+  ].sort((a, b) => b[1] - a[1]);
+  return sc[0][1] >= 0.95 ? sc[0][0] : 'balanced';
+}
+
+/* ── 单位口径（与 src/data/units.ts 同源） ──
+   钱 = 元（¥）｜时间 = 月｜人口 = 人（1 个居民方块 = 1 户 ≈ 2.6 人）
+   物资 = 件（标准品，基准价 ¥100/件）｜土地 = 元/㎡（楼面地价）｜指数 = 点（CPI 基期 100）
+   标定锚点：城镇非私营单位平均月薪 ¥10,342；户均月开销约 ¥8,000；
+             城市住宅楼面地价 ¥1,000~4,000/㎡；人均 GDP 年化约 ¥4.4 万。
+   预览页是简化模型，但所有数字都必须落在同一套真实量级上，玩家才看得出大小。*/
+const HOUSEHOLD_SIZE = 2.6;
+const BASE_WAGE = 8000;      // 基准工资：一名满产雇员的月薪（¥/月）
+const BASE_PRICE = 100;      // 标准品基准价（¥/件）
+const QTY_PER_FIRM = 1600;   // 一家企业满产时的月销量（件/月）
+const CONS_FLOOR = 6500;     // 一户一个月的基本开销（¥/月）
+const GOV_SPEND_K = 6000;    // 公共支出强度：滑杆拉满时每户每月（¥/户·月）
+const WELFARE_K = 6000;      // 福利转移支付：滑杆拉满时每户每月（¥/户·月）
+const SUBSIDY_CITY = 160000; // 产业补贴滑杆拉满的全城财政成本（¥/月）
+const EDU_CITY = 120000;     // 研发补贴滑杆拉满的全城财政成本（¥/月）
+const LAND_BASE = 600;       // 郊区基准楼面地价（¥/㎡）
+// 金额一律「¥ + 数字 + 量级后缀」，不再拼「56.2 万 元」这种读起来卡顿的写法
+const money = v => {
+  const a = Math.abs(v);
+  if (a >= 1e8) return '¥' + (v / 1e8).toFixed(2) + ' 亿';
+  if (a >= 1e4) return '¥' + (v / 1e4).toFixed(1) + ' 万';
+  return '¥' + Math.round(v).toLocaleString('zh-CN');
+};
+const yuan = money;
+const yuanMo = v => money(v) + '/月';
+const people = v => Math.round(v).toLocaleString('zh-CN') + ' 人';
+const landPrice = v => '¥' + Math.round(v).toLocaleString('zh-CN') + '/㎡';
+const qty = v => Math.round(v).toLocaleString('zh-CN') + ' 件';
+const points = v => v.toFixed(1) + ' 点';
+// 单位对照表：给玩家一张「这些数字到底是什么」的速查卡
+const UNIT_ROWS = [
+  ['钱', '元（¥）', '工资、营收、财政结余一律是元；超过 1 万用「万」显示', '2024 年城镇非私营单位平均月薪 ¥10,342'],
+  ['时间', '月', '一个月 = 一拍，12 个月 = 1 年', '开局 2026 年 1 月，第 120 个月即 2036 年'],
+  ['人口', '人', '城镇常住人口；1 个居民方块 ≈ 1 户 ≈ 2.6 人', '村庄 1,820 人 → 大都市 10,920 人'],
+  ['物资', '件', '标准品数量，价格按 ¥/件 计', '基准价 ¥100/件，CPI 基期 100 点'],
+  ['土地', '元/㎡', '楼面地价，反映区位、配套与污染', '郊区 ¥600/㎡ → 核心 CBD ¥3,000+/㎡'],
+  ['指数', '点', 'CPI 以「默认政策」为 100，只反映相对变化', 'CPI 105 点 = 物价比默认状态高 5%'],
+  ['比率', '%', '就业率、税率、基尼系数等一律用百分比', '基尼 0.40 是常见的收入分配警戒线'],
+];
+function unitHelpHtml() {
+  return `<div class="chapter">数值口径</div>
+    <h2>🧭 这些数字到底是什么单位？</h2>
+    <p>游戏里每个数字都按真实世界的量级标定，你可以拿身边的事直接对照——
+      一户月收入多少、一件商品多少钱、一平米地多少，都是能对上号的数量级。</p>
+    <table class="unit-table"><thead><tr><th>量</th><th>单位</th><th>怎么读</th><th>现实锚点</th></tr></thead>
+    <tbody>${UNIT_ROWS.map(r => `<tr><td><b>${r[0]}</b></td><td>${r[1]}</td><td>${r[2]}</td><td class="muted">${r[3]}</td></tr>`).join('')}</tbody></table>
+    <h4>三个例子</h4>
+    <p><b>可支配收入 ¥6,560/月</b>：一户扣完税每月能花的钱，接近一个普通工薪家庭的真实水平。<br>
+       <b>家庭财富 ¥18.0 万</b>：一户的存款余额，约等于 24 个月的开销。<br>
+       <b>地价 ¥3,110/㎡</b>：核心区楼面价，和三四线城市的住宅用地在同一个量级。<br>
+       <b>月薪 ¥8,000</b>：在岗雇员的平均月薪，2024 年城镇非私营单位实际平均是 ¥10,342。</p>
+    <button class="close" data-close>知道了</button>`;
+}
+
+/* ═══════════════ 2. 仿真状态 ═══════════════ */
+const state = {
+  year:2026, month:1, t:0,          // t = 开局以来的月数
+  pop:1560, emp:0.90, gdp:5680000, cpi:100, cpiBase:100, happy:60.2, treasury:8000000,
+  gini:0.32, firms:40, bankruptcies:0,
+  stage:'hamlet', peak:'hamlet',
+  wage:8000, savings:180000, cons:7400, firmProfit:7800, util:0.72, price:104, rev:119800,
+  orientation:'balanced', blueprint:'marketTown',
+  cycle: { round:1, phase:'household', phaseMonths:0, roundMonths:0, visited:['household'], roundsPlanned:4, lastUnlockMonth:-99 },
+  series: { disposableIncome:[], livingStandard:[], wealth:[], resilience:[], avgProfit:[],
+    capacityUtil:[], avgPrice:[], revenue:[], bankruptcies:[], poorShare:[], maxLandValue:[], vacancyRate:[] },
+  business: initBC(),               // 经济周期：繁荣 / 衰退 / 萧条 / 复苏
+  quiz: emptyQuiz(),                // 闯关问答档案：积分 · 连对 · 奖杯
+  // 政策决定的「无周期基准值」，周期只在这个基准上叠加波动
+  base: { price:104, cpi:100, wage:8000, cons:7400, emp:0.90, profit:7800, util:0.72, happy:60, rev:119800 },
+  unlocked: []                      // 已解锁的名词 key（由条件判定，不靠挂机）
+};
+
+/* ── 经济周期引擎 ──
+   指标不再是单调爬升的直线：景气由「内生存货周期 + 外生冲击 + 政策调制」三者合成，
+   而政策的每一根旋钮都会改写波幅、波长与谷底深度——所以周期是玩家自己造出来的。 */
+let bcDirty = false;   // 本月是否换过阶段（用于播报）
+// 旧存档兼容：缺字段补默认值，不让读档后周期直接失效
+function normalizeBC(c) {
+  const d = initBC();
+  if (!c || typeof c !== 'object') return d;
+  if (!PHASE_META[c.phase]) c.phase = d.phase;
+  if (typeof c.phaseMonths !== 'number') c.phaseMonths = 0;
+  c.phaseCount = Object.assign({}, d.phaseCount, c.phaseCount || {});
+  if (typeof c.index !== 'number') c.index = d.index;
+  if (typeof c.prevIndex !== 'number') c.prevIndex = c.index;
+  if (typeof c.amplitude !== 'number') c.amplitude = d.amplitude;
+  if (typeof c.period !== 'number') c.period = d.period;
+  if (typeof c.t !== 'number') c.t = 0;
+  if (typeof c.shock !== 'number') c.shock = 0;
+  if (typeof c.demandMult !== 'number') c.demandMult = 1;
+  if (typeof c.investMult !== 'number') c.investMult = 1;
+  if (typeof c.potentialOutput !== 'number') c.potentialOutput = 0;
+  if (typeof c.outputGap !== 'number') c.outputGap = 0;
+  if (typeof c.cycleCount !== 'number') c.cycleCount = 0;
+  if (typeof c.trend !== 'number') c.trend = 0;
+  if (typeof c.trendPerHead !== 'number') c.trendPerHead = 0;
+  if (!Array.isArray(c.history)) c.history = [];
+  if (!Array.isArray(c.gapHistory)) c.gapHistory = [];
+  return c;
+}
+function initBC() {
+  return { phase:'recovery', phaseMonths:0, phaseCount:{ boom:0, recession:0, depression:0, recovery:0 },
+    index:0.1, prevIndex:0, amplitude:0.34, period:46, t:0, shock:0,
+    demandMult:1, investMult:1, confidence:0,
+    potentialOutput:0, outputGap:0, peakIndex:0.1, troughIndex:0,
+    cycleCount:0, trend:0, trendPerHead:0, history:[], gapHistory:[] };
+}
+const bcClamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+function bcShape() {
+  const amplifiers = gov.industrySubsidy * 0.34 + fp.expansion * 0.24 + fp.inventoryStrategy * 0.22 + gov.tradeOpenness * 0.3;
+  const stabilizers = gov.welfare * 0.3 + gov.publicSpend * 0.18 + gov.taxRate * 0.5;
+  const amplitude = bcClamp(0.22 + amplifiers - stabilizers, 0.1, 0.95);
+  const period = bcClamp(44 + gov.eduSubsidy * 16 + fp.rdInvest * 10 - fp.inventoryStrategy * 10 - gov.industrySubsidy * 8, 28, 76);
+  const trendK = bcClamp(0.0022 + gov.eduSubsidy * 0.0032 + hp.skillInvest * 0.0018 + fp.rdInvest * 0.0026
+    - gov.taxRate * 0.0035 - gov.industrySubsidy * 0.0012, 0.0004, 0.008);
+  return { amplitude, period, trendK,
+    stabilizer: bcClamp(gov.welfare * 0.7 + gov.publicSpend * 0.4 + gov.taxRate * 0.6, 0, 1),
+    accelerator: bcClamp(0.55 + fp.expansion * 0.9 + gov.industrySubsidy * 0.5, 0.4, 2.2) };
+}
+function stepBC() {
+  const c = state.business || (state.business = initBC());
+  const s = bcShape();
+  // ① 外生冲击：AR(1)，持续性够强才形成「一波」而不是噪声
+  const sigma = 0.055 * (1 + gov.tradeOpenness * 1.4 + s.amplitude);
+  c.shock = bcClamp(0.86 * c.shock + sigma * ((rnd() + rnd() + rnd() - 1.5) * 1.4), -0.7, 0.7);
+  // 偶发大冲击：贸易越开放，越容易被外部波及
+  if (rnd() < 0.012 + gov.tradeOpenness * 0.02) {
+    const mag = (0.35 + rnd() * 0.45) * (rnd() < 0.5 ? -1 : 1);
+    c.shock = bcClamp(c.shock + mag, -0.85, 0.85);
+    c.jump = { month: state.t, mag };
+  }
+  // ② 内生存货周期
+  c.t += 1; if (c.t > s.period) c.t -= s.period;
+  const wave = Math.sin(2 * Math.PI * c.t / s.period);
+  c.amplitude = s.amplitude; c.period = s.period;
+  // ③ 合成景气指数，自动稳定器削平谷底
+  c.prevIndex = c.index;
+  let idx = wave * s.amplitude + c.shock;
+  if (idx < 0) idx *= 1 - s.stabilizer * 0.45;
+  c.index = bcClamp(idx, -1, 1);
+  c.peakIndex = Math.max(c.peakIndex, c.index);
+  c.troughIndex = Math.min(c.troughIndex, c.index);
+  c.demandMult = Math.max(0.35, 1 + c.index * 0.26);
+  c.investMult = Math.max(0.05, 1 + c.index * 0.62 * s.accelerator);
+  c.confidence = c.index;
+  // ④ 阶段判定：看水位也看方向，带最短持续期避免闪烁
+  const slope = c.index - c.prevIndex;
+  let next = c.phase;
+  if (c.index >= 0.34) next = 'boom';
+  else if (c.index <= -0.34) next = 'depression';
+  else if (slope >= 0.004) next = 'recovery';
+  else if (slope <= -0.004) next = 'recession';
+  if (next !== c.phase && (c.phaseMonths >= 4 || next === 'boom' || next === 'depression')) {
+    if (c.phase === 'depression' && next === 'recovery') c.cycleCount += 1;
+    c.phase = next; c.phaseMonths = 0; c.phaseCount[next] += 1;
+    bcDirty = true;
+  }
+  c.phaseMonths += 1;
+  c.history.push(c.index); c.gapHistory.push(c.outputGap);
+  if (c.history.length > 600) c.history.shift();
+  if (c.gapHistory.length > 600) c.gapHistory.shift();
+  return c;
+}
+// 人均口径的产出缺口：用总量算会被人口增长污染成恒正
+function updateGap(actual) {
+  const c = state.business || (state.business = initBC());
+  const s = bcShape();
+  if (!Number.isFinite(actual) || actual <= 0) return;
+  const pop = Math.max(1, state.pop);
+  const perHead = actual / pop;
+  if (c.trendPerHead <= 0) { c.trendPerHead = perHead; c.trend = actual; c.potentialOutput = actual; c.outputGap = 0; return; }
+  const k = 0.05;
+  c.trendPerHead = c.trendPerHead * (1 + s.trendK) * (1 - k) + perHead * k;
+  c.outputGap = bcClamp((perHead - c.trendPerHead) / Math.max(0.01, c.trendPerHead), -0.6, 0.6);
+  c.potentialOutput = c.trendPerHead * pop; c.trend = c.potentialOutput;
+}
+// 把周期叠加到政策基准上：就业、物价、利润、产能一起随景气摆动
+function applyCycle() {
+  const b = state.base, c = state.business || initBC();
+  const idx = c.index || 0, gap = c.outputGap || 0;
+  state.wage = b.wage * (1 + idx * 0.05);
+  state.cons = b.cons * (1 + idx * 0.06);
+  state.emp = bcClamp(b.emp + idx * 0.06 + gap * 0.04, 0.5, 0.995);
+  state.firmProfit = b.profit * (1 + idx * 0.55) + gap * b.rev * 0.10;
+  state.util = bcClamp(b.util + idx * 0.22, 0.15, 1);
+  state.price = b.price * (1 + idx * 0.04 + gap * 0.18);
+  state.cpiBase = bcClamp(b.cpi * (1 + idx * 0.025 + gap * 0.22), 60, 220);
+  state.rev = state.price * QTY_PER_FIRM * state.util;
+  state.gini = bcClamp(0.30 + (1 - state.emp) * 0.6, 0.05, 0.9);
+}
+
+/* ═══════════════ 2b. 闯关问答：积分 · 连对 · 奖杯 ═══════════════
+   解锁只是「见过」，答题才是「学会」。每点亮一个名词就弹一次简介 + 一道题；
+   题库按中级经济师《经济基础知识》的题型出，全部通关≈走完经济师主干知识点。 */
+function emptyQuiz() {
+  return { points:0, correct:0, wrong:0, streak:0, bestStreak:0, answered:{}, trophies:[] };
+}
+function normalizeQuiz(q) {
+  const d = emptyQuiz();
+  if (!q || typeof q !== 'object') return d;
+  q.points = typeof q.points === 'number' ? q.points : 0;
+  q.wrong = typeof q.wrong === 'number' ? q.wrong : 0;
+  q.streak = typeof q.streak === 'number' ? q.streak : 0;
+  q.bestStreak = typeof q.bestStreak === 'number' ? q.bestStreak : 0;
+  q.answered = q.answered && typeof q.answered === 'object' ? q.answered : {};
+  q.trophies = Array.isArray(q.trophies) ? q.trophies : [];
+  recountCorrect(q);
+  return q;
+}
+function recountCorrect(q) {
+  let c = 0;
+  for (const k in q.answered) if (q.answered[k] && q.answered[k].ok) c++;
+  q.correct = c;
+}
+const TROPHIES = [
+  { id:'first', name:'开卷有益', icon:'📗', desc:'答对第一道题', check:q => q.correct >= 1 },
+  { id:'streak5', name:'渐入佳境', icon:'🔥', desc:'连续答对 5 道题', check:q => q.bestStreak >= 5 },
+  { id:'streak10', name:'势如破竹', icon:'⚡', desc:'连续答对 10 道题', check:q => q.bestStreak >= 10 },
+  { id:'points100', name:'小有所成', icon:'🥉', desc:'累计积分达到 100', check:q => q.points >= 100 },
+  { id:'points300', name:'学富五车', icon:'🥈', desc:'累计积分达到 300', check:q => q.points >= 300 },
+  { id:'points600', name:'满腹经纶', icon:'🥇', desc:'累计积分达到 600', check:q => q.points >= 600 },
+  { id:'micro', name:'微观通', icon:'🔍', desc:'微观经济学全部答对', check:q => chapterDone(q, 'micro') },
+  { id:'industrial', name:'产业通', icon:'🏭', desc:'产业经济学全部答对', check:q => chapterDone(q, 'industrial') },
+  { id:'macro', name:'宏观通', icon:'🌐', desc:'宏观经济学全部答对', check:q => chapterDone(q, 'macro') },
+  { id:'half', name:'半部经济学', icon:'📚', desc:'答对全部名词的一半', check:q => q.correct >= Math.ceil(TERMS.length / 2) },
+  { id:'economist', name:'经济师在望', icon:'🎓', desc:'全部名词都答对过', check:q => q.correct >= TERMS.length },
+  { id:'perfect', name:'满分经济师', icon:'🏆', desc:'全部名词都一次答对', check:q => perfectAll(q) }
+];
+function chapterDone(q, ch) {
+  const list = TERMS.filter(t => t.chapter === ch);
+  return list.length > 0 && list.every(t => q.answered[t.key] && q.answered[t.key].ok);
+}
+function perfectAll(q) {
+  return TERMS.every(t => q.answered[t.key] && q.answered[t.key].ok && q.answered[t.key].firstTry);
+}
+function sameSet(a, b) {
+  if (a.length !== b.length) return false;
+  const sa = a.slice().sort((x, y) => x - y), sb = b.slice().sort((x, y) => x - y);
+  return sa.every((v, i) => v === sb[i]);
+}
+function gradeAnswer(key, chosen) {
+  const q = state.quiz, def = quizByKey(key);
+  if (!def) return null;
+  const before = q.answered[key];
+  const ok = sameSet(chosen, def.answer);
+  const firstTry = !before;
+  let gained = 0;
+  if (ok) {
+    const base = quizScoreOf(def);
+    gained = before && before.ok ? Math.round(base * 0.3) : base + (before ? 0 : 5);
+    q.points += gained; q.streak += 1; q.bestStreak = Math.max(q.bestStreak, q.streak);
+  } else { q.wrong += 1; q.streak = 0; }
+  q.answered[key] = { ok: ok || !!(before && before.ok), tries:(before ? before.tries : 0) + 1,
+    firstTry: !!(before && before.firstTry) || (firstTry && ok) };
+  recountCorrect(q);
+  const fresh = [];
+  for (const t of TROPHIES) if (!q.trophies.includes(t.id) && t.check(q)) { q.trophies.push(t.id); fresh.push(t); }
+  saveQuizProfile(q);
+  return { gained, ok, firstTry, newTrophies: fresh };
+}
+function quizSummary(q) {
+  return { total: TERMS.length, answered: Object.keys(q.answered).length, correct: q.correct,
+    points: q.points, bestStreak: q.bestStreak,
+    trophies: TROPHIES.filter(t => q.trophies.includes(t.id)),
+    next: TROPHIES.find(t => !q.trophies.includes(t.id)) || null };
+}
+const termMark = (q, k) => (q.answered[k] ? (q.answered[k].ok ? 'ok' : 'wrong') : 'none');
+// 学习成果属于玩家，不属于某一局：跨局留存，开新城市不清零
+const QPROFILE_KEY = 'macroville.quiz.profile.v1';
+function loadQuizProfile() {
+  try { const raw = localStorage.getItem(QPROFILE_KEY); return raw ? normalizeQuiz(JSON.parse(raw)) : emptyQuiz(); }
+  catch (e) { return emptyQuiz(); }
+}
+function saveQuizProfile(q) { try { localStorage.setItem(QPROFILE_KEY, JSON.stringify(q)); } catch (e) {} }
+// 合并两份进度：答过取并集、积分取较大、奖杯取并集
+function mergeQuiz(a, b) {
+  const out = emptyQuiz();
+  out.answered = Object.assign({}, a.answered, b.answered);
+  for (const k in out.answered) {
+    const x = a.answered[k], y = b.answered[k];
+    if (x && y) out.answered[k] = { ok: x.ok || y.ok, tries: x.tries + y.tries, firstTry: x.firstTry || y.firstTry };
+  }
+  out.points = Math.max(a.points, b.points); out.wrong = Math.max(a.wrong, b.wrong);
+  out.bestStreak = Math.max(a.bestStreak, b.bestStreak); out.streak = Math.max(a.streak, b.streak);
+  out.trophies = Array.from(new Set(a.trophies.concat(b.trophies)));
+  recountCorrect(out);
+  return out;
+}
+function renderQuizBtn() {
+  const b = document.getElementById('quiz-btn');
+  if (!b) return;
+  const s = quizSummary(state.quiz);
+  b.textContent = `🎓 ${s.points} 分 · ${s.correct}/${s.total} · 🏆${s.trophies.length}`;
+}
+
+// 解锁名词后弹「简介 + 闯关题」；没有配套题目时退化成纯简介
+function openTermQuiz(key, onDone) {
+  const t = termByKey(key), q = quizByKey(key);
+  if (!t) return;
+  if (!q) {
+    showModal(`<div class="chapter">${CH_LABEL[t.chapter]}</div><h2>${t.name}</h2>
+      <h4>基本定义</h4><p>${t.def}</p><h4>在城里怎么体现</h4><p>${t.effect}</p>
+      <button class="close" data-close>知道了</button>`);
+    if (onDone) onDone(true);
+    return;
+  }
+  const multi = q.type === 'multi';
+  const chosen = new Set();
+  const score = quizScoreOf(q);
+  const already = state.quiz.answered[key];
+  showModal(`<div class="chapter">${CH_LABEL[t.chapter]} · ${TYPE_LABEL[q.type]} · ${score} 分</div>
+    <h2>📖 ${t.name}</h2>
+    <h4>基本定义</h4><p>${t.def}</p>
+    <h4>在城里怎么体现</h4><p>${t.effect}</p>
+    <div class="quiz-box">
+      <div class="quiz-stem">${q.stem}</div>
+      <div class="quiz-opts">${q.options.map((o, i) =>
+        `<button class="quiz-opt" data-i="${i}"><span class="qo-key">${'ABCDE'[i]}</span>${o}</button>`).join('')}</div>
+      <div class="quiz-tip">${multi ? '多选题：少选、多选、错选均不得分' : '请选择唯一正确答案'}${
+        already ? `　·　此前已作答 ${already.tries} 次` : '　·　首次答对额外 +5 分'}</div>
+      <div class="quiz-actions">
+        <button class="quiz-submit" id="quiz-submit" disabled>提交</button>
+        <button class="quiz-skip" id="quiz-skip">先跳过</button>
+      </div>
+      <div class="quiz-feedback hidden" id="quiz-fb"></div>
+    </div>`);
+  const opts = Array.prototype.slice.call(modal.querySelectorAll('.quiz-opt'));
+  const submit = modal.querySelector('#quiz-submit');
+  const skip = modal.querySelector('#quiz-skip');
+  const fb = modal.querySelector('#quiz-fb');
+  const sync = () => { opts.forEach(b => b.classList.toggle('on', chosen.has(Number(b.dataset.i)))); submit.disabled = chosen.size === 0; };
+  opts.forEach(b => b.onclick = () => {
+    const i = Number(b.dataset.i);
+    if (chosen.has(i)) chosen.delete(i); else { if (!multi) chosen.clear(); chosen.add(i); }
+    sync();
+  });
+  skip.onclick = () => { closeModal(); if (onDone) onDone(false); };
+  submit.onclick = () => {
+    const res = gradeAnswer(key, Array.from(chosen));
+    if (!res) return;
+    opts.forEach(b => {
+      const i = Number(b.dataset.i);
+      b.classList.remove('on'); b.classList.add(q.answer.indexOf(i) >= 0 ? 'right' : 'picked'); b.disabled = true;
+    });
+    submit.disabled = true;
+    submit.textContent = res.ok ? `✓ 答对 +${res.gained}` : '✗ 答错';
+    fb.classList.remove('hidden');
+    fb.innerHTML = `<div class="qf-head ${res.ok ? 'ok' : 'no'}">${res.ok ? `回答正确（+${res.gained} 分）` : '回答错误'}</div>
+      <div class="qf-ans">正确答案：${q.answer.map(i => `${'ABCDE'[i]}. ${q.options[i]}`).join('　')}</div>
+      <h4>解析</h4><p>${q.explain}</p>
+      <p class="muted">${q.source}</p>
+      ${res.newTrophies.length ? `<div class="quiz-trophy">${res.newTrophies.map(t2 => `${t2.icon} 获得奖杯「${t2.name}」`).join('　')}</div>` : ''}
+      <button class="close" id="quiz-next">${res.ok ? '继续游戏' : '再看看'}</button>`;
+    const next = fb.querySelector('#quiz-next');
+    next.onclick = () => { closeModal(); renderQuizBtn(); renderKnowledge(); if (onDone) onDone(res.ok); };
+  };
+}
+// 学习档案：积分 / 奖杯 / 章节进度 / 错题重做
+function openArchive() {
+  const q = state.quiz, s = quizSummary(q);
+  const chapRows = ['micro', 'industrial', 'macro'].map(ch => {
+    const list = TERMS.filter(t => t.chapter === ch);
+    const ok = list.filter(t => q.answered[t.key] && q.answered[t.key].ok).length;
+    const locked = list.filter(t => !state.unlocked.includes(t.key)).length;
+    return `<div class="det-row"><span>${CH_LABEL[ch]}</span><b>${ok}/${list.length} 题　·　未解锁 ${locked}</b></div>`;
+  }).join('');
+  const tro = TROPHIES.map(t => {
+    const got = q.trophies.indexOf(t.id) >= 0;
+    return `<div class="tro ${got ? 'got' : ''}" title="${t.desc}"><span class="tro-icon">${got ? t.icon : '🔒'}</span>
+      <span class="tro-name">${t.name}</span><span class="tro-desc">${t.desc}</span></div>`;
+  }).join('');
+  const pending = TERMS.filter(t => state.unlocked.indexOf(t.key) >= 0 && termMark(q, t.key) !== 'ok');
+  const pHtml = pending.length
+    ? pending.slice(0, 40).map(t => `<button class="kchip ${termMark(q, t.key) === 'wrong' ? 'mark-wrong' : ''}" data-req="${t.key}">${
+        termMark(q, t.key) === 'wrong' ? '✗' : ''}${t.name}</button>`).join('')
+    : '<p class="muted">已解锁的名词你都答对了。继续玩，解锁更多名词就会来新题。</p>';
+  showModal(`<div class="chapter">学习档案</div>
+    <h2>🎓 ${s.points} 分　·　${s.correct}/${s.total} 题　·　🏆 ${s.trophies.length}/${TROPHIES.length}</h2>
+    <p class="muted">全部 ${s.total} 个名词都答对一遍，就相当于把中级经济师《经济基础知识》的主干知识点走了一遍。</p>
+    <div class="det-stats">
+      <div class="det-row"><span>累计答对</span><b>${s.correct} 题</b></div>
+      <div class="det-row"><span>累计答错</span><b>${q.wrong} 次</b></div>
+      <div class="det-row"><span>最高连对</span><b>${q.bestStreak} 题</b></div>
+      <div class="det-row"><span>当前连对</span><b>${q.streak} 题</b></div>
+      ${chapRows}
+    </div>
+    <h4>奖杯</h4><div class="tro-grid">${tro}</div>
+    <h4>待答 / 答错的名词（点开重做）</h4><div class="kterms">${pHtml}</div>
+    ${s.next ? `<p class="muted">下一个目标：${s.next.icon} 「${s.next.name}」——${s.next.desc}</p>`
+      : '<p class="muted">全部奖杯已到手，你已经是这座城邦的首席经济师了。</p>'}
+    <button class="close" data-close>关闭</button>`);
+  modal.querySelectorAll('[data-req]').forEach(b => b.onclick = () => openTermQuiz(b.dataset.req, () => {
+    closeModal(); renderQuizBtn(); renderKnowledge(); openArchive();
+  }));
+}
+const SERIES_CAP = 600;
+function pushSeries(k, v) {
+  const arr = state.series[k];
+  if (!arr) return;
+  arr.push(Number.isFinite(v) ? v : 0);
+  if (arr.length > SERIES_CAP) arr.shift();
+}
+function updateSeries() {
+  pushSeries('disposableIncome', state.wage * (1 - gov.taxRate));
+  pushSeries('livingStandard', state.happy);
+  pushSeries('wealth', state.savings);
+  pushSeries('resilience', state.cons > 0 ? state.savings / state.cons : 0);
+  pushSeries('avgProfit', state.firmProfit);
+  pushSeries('capacityUtil', state.util);
+  pushSeries('avgPrice', state.price);
+  pushSeries('revenue', state.rev);
+  pushSeries('bankruptcies', state.bankruptcies);
+  pushSeries('poorShare', emergeStats().poorShare);
+  pushSeries('maxLandValue', tileAvg().maxLandValue);
+  pushSeries('vacancyRate', Math.max(0, 1 - state.util));
+}
+const gov = { taxRate:0.2, minWage:2500, publicSpend:0.3, industrySubsidy:0, eduSubsidy:0, tradeOpenness:0, welfare:0 };
+const hp  = { savingsRate:0.2, consumptionPropensity:1.0, laborParticipation:0.9, skillInvest:0.2, riskAppetite:0.5 };
+const fp  = { markup:0.3, wageMultiplier:1.0, expansion:0.3, rdInvest:0.2, inventoryStrategy:0.4 };
+const PARAMS = { gov, household:hp, firm:fp };
+
+const LEVERS = [
+  { id:'taxRate', scope:'gov', label:'税率', min:0, max:.5, step:.01, yearOffset:0, fmt:v=>(v*100).toFixed(0)+'%' },
+  { id:'minWage', scope:'gov', label:'最低工资', min:1000, max:15000, step:100, yearOffset:0,
+    fmt:v=>'¥' + Math.round(v).toLocaleString('zh-CN') + '/月' },
+  { id:'publicSpend', scope:'gov', label:'公共支出', min:0, max:1, step:.05, yearOffset:0, fmt:v=>(v*100).toFixed(0)+'%' },
+  { id:'industrySubsidy', scope:'gov', label:'产业补贴', min:0, max:1, step:.05, yearOffset:1, fmt:v=>(v*100).toFixed(0)+'%' },
+  { id:'eduSubsidy', scope:'gov', label:'研发补贴', min:0, max:1, step:.05, yearOffset:2, fmt:v=>(v*100).toFixed(0)+'%' },
+  { id:'tradeOpenness', scope:'gov', label:'贸易开放度', min:0, max:1, step:.05, yearOffset:3, fmt:v=>(v*100).toFixed(0)+'%' },
+  { id:'welfare', scope:'gov', label:'福利支出', min:0, max:1, step:.05, yearOffset:4, fmt:v=>(v*100).toFixed(0)+'%' },
+  { id:'savingsRate', scope:'household', label:'储蓄率', min:0, max:.6, step:.05, yearOffset:0, fmt:v=>(v*100).toFixed(0)+'%' },
+  { id:'consumptionPropensity', scope:'household', label:'消费倾向', min:.6, max:1.4, step:.05, yearOffset:0, fmt:v=>v.toFixed(2) },
+  { id:'laborParticipation', scope:'household', label:'劳动参与率', min:.5, max:1, step:.05, yearOffset:0, fmt:v=>(v*100).toFixed(0)+'%' },
+  { id:'skillInvest', scope:'household', label:'技能投入', min:0, max:1, step:.05, yearOffset:0, fmt:v=>(v*100).toFixed(0)+'%' },
+  { id:'riskAppetite', scope:'household', label:'风险偏好', min:0, max:1, step:.05, yearOffset:0, fmt:v=>(v*100).toFixed(0)+'%' },
+  { id:'markup', scope:'firm', label:'加价率', min:0, max:1, step:.05, yearOffset:0, fmt:v=>(v*100).toFixed(0)+'%' },
+  { id:'wageMultiplier', scope:'firm', label:'工资出价', min:.5, max:2, step:.1, yearOffset:0, fmt:v=>v.toFixed(2) },
+  { id:'expansion', scope:'firm', label:'扩产意愿', min:0, max:1, step:.05, yearOffset:0, fmt:v=>(v*100).toFixed(0)+'%' },
+  { id:'rdInvest', scope:'firm', label:'研发投入', min:0, max:1, step:.05, yearOffset:0, fmt:v=>(v*100).toFixed(0)+'%' },
+  { id:'inventoryStrategy', scope:'firm', label:'库存策略', min:0, max:1, step:.05, yearOffset:0, fmt:v=>(v*100).toFixed(0)+'%' }
+];
+const leverById = id => LEVERS.find(l => l.id === id);
+function leverOpen(l) {
+  if (l.scope === 'gov' && state.year < 2026 + l.yearOffset) return false;
+  const g = leverGate(l.id);
+  return !g || state.unlocked.includes(g.key);
+}
+function leverWhy(l) {
+  const g = leverGate(l.id);
+  if (g && !state.unlocked.includes(g.key)) {
+    return '解锁「' + g.name + '」：' + reqHint(g.req, buildCtx());
+  }
+  if (l.scope === 'gov' && state.year < 2026 + l.yearOffset) return '第 ' + (l.yearOffset + 1) + ' 年解锁';
+  return '尚未开放';
+}
+
+/* ═══════════════ 3. 地块：每格都有属性 ═══════════════ */
+const GW = 40, GH = 40;
+function lcg(seed) { return () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff; }
+const rnd = lcg(20261020);
+
+const TILE_BASE = { r:'#2b3a55', c:'#3a5a40', i:'#5a4a2b', road:'#1a1d27', p:'#7a5cff', w:'#2e8bff', s:'#ffb347', h:'#ff6b8a', e:'#0b0d13' };
+const TILE_NAME = { r:'居民区', c:'商业区', i:'工业区', road:'道路', p:'电力设施', w:'供水设施', s:'学校', h:'医院', e:'空地/待开发' };
+const LAYERS = [
+  ['usage','用途','亮度=等级，棕色=污染'],
+  ['value','地价','区位+临路+密度+配套−污染'],
+  ['density','密度','住区入住/商业客流/工业开工'],
+  ['pollution','污染','工业排放经邻域扩散的累积'],
+  ['level','等级','地块开发强度 1-5（上限由所在环带的控规给定）'],
+  ['amenity','公共服务','学校医院水电的辐射强度']
+];
+
+// ── 现实规划指标（与 src/sim/land.ts 同一套口径）──
+// 一格 = 边长 250 米的街区，毛用地 62,500 ㎡，扣掉街坊内支路与绿地后净用地率 70% → 43,750 ㎡ 可建。
+// 承载量不再凭空给，而是按《城市居住区规划设计标准》的同口径算法折算：
+//   建筑面积 = 净用地 × 容积率；常住人口 = 住宅建筑面积 ÷ 40 ㎡/人；岗位 = 建筑面积 ÷ 25（商务）/60（工业）㎡
+// 设计规模：全城控规指标加总 ≈ 100 万常住人口（src/sim/land.ts 的 DESIGN_POP_CAP）。
+// 本页面是「界面预览」，宏观推演用的是轻量替代引擎，节奏与真实引擎不同，但地块指标口径一致。
+const TILE_M = 250, NET_RATIO = 0.7, NET_AREA = TILE_M * TILE_M * NET_RATIO;
+const M2_PER_PERSON = 40, HOUSING_SHARE = 0.85, M2_PER_JOB_COMM = 25, M2_PER_JOB_IND = 60;
+const M2_PER_PUPIL = 9, M2_PER_BED = 110;
+const DESIGN_POP_CAP = 1_000_000;
+
+// 环带分区：控规就是按「离市中心多远」给每个街坊定指标的
+// 0 CBD（d<0.10）· 1 内城（<0.36）· 2 中环（<0.56）· 3 外围（<0.80）· 4 远郊（<0.98）· 5 生态绿地
+const RING_EDGES = [0.10, 0.36, 0.56, 0.80, 0.98];
+const RING_LABELS = ['CBD', '内城', '中环', '外围', '远郊', '生态绿地'];
+const ringIndexOf = d => { for (let i = 0; i < RING_EDGES.length; i++) if (d < RING_EDGES[i]) return i; return RING_EDGES.length; };
+
+// 容积率 / 建筑密度 / 绿地率：下标 = 开发强度等级 − 1（1 级村落低层 → 5 级中心区高层）
+const FAR_TABLE = {
+  r:[0.7,1.3,2.0,2.8,3.6], c:[0.8,1.5,2.5,4.0,6.0], i:[0.6,0.9,1.2,1.5,1.8],
+  s:[0.5,0.6,0.7,0.8,0.9], h:[0.8,1.1,1.4,1.7,2.1], p:[0.3,0.4,0.5,0.6,0.7],
+  w:[0.3,0.4,0.5,0.6,0.7], road:[0,0,0,0,0], e:[0,0,0,0,0]
+};
+const COVERAGE_TABLE = {
+  r:[.32,.30,.28,.25,.22], c:[.40,.42,.45,.48,.50], i:[.45,.50,.55,.58,.60],
+  s:[.25,.26,.28,.30,.30], h:[.30,.32,.34,.35,.36], p:[.30,.35,.40,.40,.40],
+  w:[.25,.30,.35,.35,.35], road:[0,0,0,0,0], e:[0,0,0,0,0]
+};
+const GREEN_TABLE = {
+  r:[.35,.32,.30,.30,.32], c:[.25,.22,.20,.20,.22], i:[.15,.15,.15,.15,.15],
+  s:[.35,.35,.35,.35,.35], h:[.35,.35,.35,.35,.35], p:[.30,.30,.30,.30,.30],
+  w:[.35,.35,.35,.35,.35], road:[.10,.10,.10,.10,.10], e:[.90,.90,.90,.90,.90]
+};
+// 控规给定的强度上限：市场只能在上限之内加建，想突破得等控规调整
+//                       CBD 内城 中环 外围 远郊
+const PLAN_LEVEL_TABLE = {
+  r:[4,4,3,2,1], c:[5,4,3,2,1], i:[1,1,2,2,1], s:[3,3,3,2,2], h:[4,3,3,2,2],
+  p:[2,2,2,2,2], w:[2,2,2,2,2], road:[1,1,1,1,1], e:[1,1,1,1,1]
+};
+const at = (tab, type, lv) => (tab[type] || tab.e)[Math.max(0, Math.min(4, Math.round(lv) - 1))];
+const farOf = (type, lv) => at(FAR_TABLE, type, lv);
+const coverageOf = (type, lv) => at(COVERAGE_TABLE, type, lv);
+const greenRateOf = (type, lv) => at(GREEN_TABLE, type, lv);
+const planLevelOf = (type, ring) => (PLAN_LEVEL_TABLE[type] || PLAN_LEVEL_TABLE.e)[Math.max(0, Math.min(4, ring))];
+const gfaOf = (type, lv) => NET_AREA * farOf(type, lv);
+const floorsOf = (type, lv) => { const c = coverageOf(type, lv); return c > 0 ? farOf(type, lv) / c : 0; };
+const popCapOf = (type, lv) => type === 'r' ? Math.round((NET_AREA * farOf(type, lv) * HOUSING_SHARE) / M2_PER_PERSON) : 0;
+const jobCapOf = (type, lv) =>
+  type === 'c' ? gfaOf(type, lv) / M2_PER_JOB_COMM :
+  type === 'i' ? gfaOf(type, lv) / M2_PER_JOB_IND :
+  type === 's' ? gfaOf(type, lv) / M2_PER_PUPIL / 25 :
+  type === 'h' ? (gfaOf(type, lv) / M2_PER_BED) * 1.4 : 0;
+// 公共服务设施的供给能力：学校给学位、医院给床位、电厂给 MW、水厂给千吨/日
+const serviceCapOf = (type, lv) =>
+  type === 's' ? [`学位`, Math.round(gfaOf(type, lv) / M2_PER_PUPIL), '个'] :
+  type === 'h' ? [`床位`, Math.round(gfaOf(type, lv) / M2_PER_BED), '张'] :
+  type === 'p' ? [`供电能力`, Math.round(gfaOf(type, lv) / 40), 'MW'] :
+  type === 'w' ? [`供水能力`, Math.round(gfaOf(type, lv) / 25), '千吨/日'] : null;
+const ROAD_LABEL = { 0:'非道路', 1:'支路', 2:'次干道', 3:'主干道' };
+const ROAD_WIDTH = { 0:0, 1:15, 2:30, 3:45 };
+
+// 真实城市规划的同心环 + 风向分区：中心是 CBD，内环住区，中环住商混合，
+// 工业区只落在下风向一侧，电厂在下风向远郊、水厂在上风向，最外圈留绿带。
+const RING = { cbd:0.10, inner:0.34, mixed:0.50, industry:0.72 };
+const ROAD_STEP = 5;
+const isDownwind = ang => ang > Math.PI / 10 && ang < Math.PI * 9 / 10;
+const tiles = [];
+for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) {
+  const cx = (GW - 1) / 2, cy = (GH - 1) / 2, maxR = Math.min(cx, cy);
+  const d = Math.hypot(x - cx, y - cy) / maxR;
+  const ang = Math.atan2(y - cy, x - cx);
+  const ring = ringIndexOf(d);          // 控规环带：指标按「离市中心多远」给定
+  let type, rclass = 0;
+  const arterial = Math.abs(x - cx) <= 0.6 || Math.abs(y - cy) <= 0.6;
+  const ringRoad = Math.abs(d - 0.34) < 0.022 || Math.abs(d - 0.62) < 0.022;
+  // 路网横平竖直：主干道 + 环路 + 每 5 格一条支路；支路按 10% 概率随机缺失，避免棋盘过于死板
+  const branch = x % ROAD_STEP === 0 || y % ROAD_STEP === 0;
+  if (arterial) { type = 'road'; rclass = 3; }
+  else if (ringRoad) { type = 'road'; rclass = 2; }
+  else if (branch && rnd() > 0.10) { type = 'road'; rclass = 1; }
+  else if (d < RING.cbd) type = 'c';
+  else if (d < RING.inner) type = 'r';
+  else if (d < RING.mixed) type = ((Math.floor(x / ROAD_STEP) + Math.floor(y / ROAD_STEP)) % 2 === 0) ? 'c' : 'r';
+  else if (d < RING.industry) type = isDownwind(ang) ? 'i' : 'r';
+  else type = 'e';
+  const centrality = 1 - Math.min(1, Math.hypot(x - cx, y - cy) / maxR);
+  tiles.push({
+    type, rclass, ring,
+    planLevel: planLevelOf(type, ring),                                  // 控规容积率等级（法定上限）
+    dev:false, density:0, level:1,
+    value: Math.max(300, (LAND_BASE + centrality * 2400) * (0.85 + rnd() * 0.3)), // 地价带随机扰动
+    pollution:0, amenity:0
+  });
+}
+// 电厂（下风向远郊）、水厂（上风向）、学校与医院（均匀撒在居住区）
+(function placeInfra() {
+  const cx = (GW - 1) / 2, cy = (GH - 1) / 2, maxR = Math.min(cx, cy);
+  const poolP = [], poolW = [];
+  for (let i = 0; i < tiles.length; i++) {
+    if (tiles[i].type === 'road') continue;
+    const x = i % GW, y = (i / GW) | 0;
+    const d = Math.hypot(x - cx, y - cy) / maxR, ang = Math.atan2(y - cy, x - cx);
+    if (d > 0.6 && d < 0.8 && isDownwind(ang)) poolP.push(i);
+    else if (d > 0.58 && d < 0.8 && !isDownwind(ang)) poolW.push(i);
+  }
+  for (let n = 0; n < 4 && poolP.length; n++) { const k = (rnd() * poolP.length) | 0; tiles[poolP[k]].type = 'p'; poolP.splice(k, 1); }
+  for (let n = 0; n < 3 && poolW.length; n++) { const k = (rnd() * poolW.length) | 0; tiles[poolW[k]].type = 'w'; poolW.splice(k, 1); }
+  let flip = 0;
+  for (let by = 2; by < GH - 2; by += 6) for (let bx = 2; bx < GW - 2; bx += 6) {
+    const i = by * GW + bx;
+    if (tiles[i].type === 'r') tiles[i].type = flip++ % 2 === 0 ? 's' : 'h';
+  }
+})();
+
+// view = 地图可视半径（格）：视野随城市长大而拉开，格子随之变小。
+// 8 档细分，再归入 4 个 tier（村落级/集镇级/城市级/都会级）：视角解锁与概念条件按 tier 判定。
+const STAGES = [
+  { id:'hamlet', name:'村落', icon:'🏚', tier:0, radius:5, view:4, allow:['r','road'], minPop:0, minMonths:0, persp:'household',
+    desc:'几排屋子围着一条土路。所有人靠附近几亩地和彼此的活计过日子。', unlockNote:'开局：民房与土路（视野 9×9）· 你是这里的居民' },
+  { id:'village', name:'村庄', icon:'🏘', tier:0, radius:7, view:6, allow:['r','c','road'], minPop:1820, minMonths:8, persp:null,
+    desc:'主街两侧开出店铺，集市成了消息与价格的集散地。', unlockNote:'商铺 · 集市（视野 13×13）' },
+  { id:'town', name:'集镇', icon:'🏙', tier:1, radius:10, view:9, allow:['r','c','i','p','road'], minPop:2860, minMonths:18, persp:'firm',
+    desc:'作坊与电厂在下风向拔地而起，通勤距离第一次开始变长。', unlockNote:'工业区 · 电厂 · 开启「企业视角」（视野 19×19）' },
+  { id:'smallCity', name:'小城市', icon:'🌉', tier:1, radius:13, view:12, allow:['r','c','i','p','w','road'], minPop:4160, minMonths:30, persp:null,
+    desc:'自来水厂在上风向落成，公共服务第一次成为"可以拧的旋钮"。', unlockNote:'水厂 · 市政管网（视野 25×25）' },
+  { id:'midCity', name:'中等城市', icon:'🌆', tier:2, radius:16, view:15, allow:['r','c','i','p','w','s','road'], minPop:5720, minMonths:45, persp:'gov',
+    desc:'学校按街区铺开，人力资本开始反哺生产率。你可以站到治理者的位置上了。', unlockNote:'学校 · 开启「政府视角」（视野 31×31）' },
+  { id:'bigCity', name:'大城市', icon:'🌃', tier:2, radius:19, view:18, allow:['r','c','i','p','w','s','h','road'], minPop:7280, minMonths:62, persp:null,
+    desc:'医院入网，公共服务覆盖率成为影响满意度与人口去留的关键项。', unlockNote:'医院 · 公共医疗（视野 37×37）' },
+  { id:'metropolis', name:'都会区', icon:'🌇', tier:3, radius:22, view:22, allow:['r','c','i','p','w','s','h','road'], minPop:8840, minMonths:80, persp:null,
+    desc:'连绵建成区吞掉了绿带边缘。规模带来集聚红利，也带来拥堵与生活成本。', unlockNote:'集聚效应 · 规模经济（视野 45×45）' },
+  { id:'globalCity', name:'全球城市', icon:'🛰', tier:3, radius:26, view:20, allow:['r','c','i','p','w','s','h','road'], minPop:10920, minMonths:104, persp:null,
+    desc:'资金、人才与货物在这里交汇。你的每一个参数，都会被整张网络放大。', unlockNote:'全境开发 · 全球分工（视野全开）' }
+];
+const stageIdx = id => Math.max(0, STAGES.findIndex(s => s.id === id));
+// tier：概念条件与视角解锁都按它判定，阶段细分不会改变"发展到城市级"这类门槛的含义
+const tierOfStage = id => STAGES[stageIdx(id)].tier;
+const curStage = () => STAGES[stageIdx(state.stage)];
+const unlockedPersp = () => {
+  const tier = tierOfStage(state.peak);
+  const out = [];
+  for (const s of STAGES) if (s.tier <= tier && s.persp && !out.includes(s.persp)) out.push(s.persp);
+  return out;
+};
+
+function developCity(st) {
+  for (let y = 0, i = 0; y < GH; y++) for (let x = 0; x < GW; x++, i++) {
+    const t = tiles[i];
+    if (t.dev || Math.hypot(x - GW / 2, y - GH / 2) > st.radius || !st.allow.includes(t.type)) continue;
+    t.dev = true; t.level = 1;
+  }
+}
+
+// —— 地块演化：密度/地价/污染/等级/用途转换 ——
+function evolveTiles() {
+  const N = tiles.length;
+  const emit = new Float32Array(N);
+  const resTiles = tiles.filter(t => t.dev && t.type === 'r');
+  // 每块住区承载多少「户」：人口先折成户，否则密度会被放大 2.6 倍直接顶满
+  const perRes = resTiles.length ? state.pop / HOUSEHOLD_SIZE / resTiles.length : 0;
+  const util = state.util;
+
+  for (let i = 0; i < N; i++) {
+    const t = tiles[i];
+    if (!t.dev) continue;
+    if (t.type === 'i') emit[i] = 0.004 * t.level + 0.003;
+    else if (t.type === 'p') emit[i] = 0.003 * t.level;
+    else if (t.type === 'road') emit[i] = 0.001;
+  }
+  const selfClean = 0.9 + gov.publicSpend * 0.06;
+  const nPol = new Float32Array(N);
+  for (let i = 0; i < N; i++) {
+    const x = i % GW, y = (i / GW) | 0;
+    let s = 0, n = 0;
+    if (x > 0) { s += tiles[i-1].pollution; n++; }
+    if (x < GW-1) { s += tiles[i+1].pollution; n++; }
+    if (y > 0) { s += tiles[i-GW].pollution; n++; }
+    if (y < GH-1) { s += tiles[i+GW].pollution; n++; }
+    nPol[i] = Math.min(1, tiles[i].pollution * selfClean + emit[i] + (n ? s / n : 0) * 0.07);
+  }
+  // 公共服务辐射
+  const serviceK = 0.5 + gov.publicSpend * 1.6;
+  const RAD = { s:[0.75,4], h:[0.8,5], w:[0.35,3], p:[0.3,2] };
+  const nAm = new Float32Array(N);
+  for (let i = 0; i < N; i++) {
+    const t = tiles[i];
+    if (!t.dev || !RAD[t.type]) continue;
+    const [str, rad] = RAD[t.type];
+    const sx = i % GW, sy = (i / GW) | 0;
+    for (let dy = -Math.ceil(rad); dy <= rad; dy++) for (let dx = -Math.ceil(rad); dx <= rad; dx++) {
+      const nx = sx + dx, ny = sy + dy;
+      if (nx < 0 || ny < 0 || nx >= GW || ny >= GH) continue;
+      const d = Math.hypot(dx, dy);
+      if (d > rad) continue;
+      nAm[ny * GW + nx] += str * serviceK * (1 - d / rad);
+    }
+  }
+  for (let i = 0; i < N; i++) {
+    const t = tiles[i];
+    t.pollution = nPol[i];
+    t.amenity = Math.min(1, nAm[i]);
+    if (!t.dev) { t.density = 0; continue; }
+    let target = t.density;
+    if (t.type === 'r') target = Math.min(1, perRes / (2 + t.level * 3));
+    else if (t.type === 'c') target = 0.35 + Math.min(1, state.cpi / 130) * 0.5;
+    else if (t.type === 'i') target = 0.4 + util * 0.55;
+    else if (t.type === 'road') target = util;
+    else target = 0.5;
+    t.density += (target - t.density) * 0.25;
+
+    const x = i % GW, y = (i / GW) | 0;
+    const centrality = 1 - Math.min(1, Math.hypot(x - GW / 2, y - GH / 2) / Math.hypot(GW / 2, GH / 2));
+    const nearRoad = (x > 0 && tiles[i-1].type === 'road') || (x < GW-1 && tiles[i+1].type === 'road')
+      || (y > 0 && tiles[i-GW].type === 'road') || (y < GH-1 && tiles[i+GW].type === 'road');
+    // 楼面地价（元/㎡）：与 src/sim/tiles.ts 同一套权重，量级 600~3,100
+    const tv = Math.max(100, Math.min(8000,
+      LAND_BASE * 0.8 + centrality * 900 + (nearRoad ? 450 : 0) + t.density * 1100
+      + t.amenity * 800 - t.pollution * 900 + (t.level - 1) * 250));
+    t.value += (tv - t.value) * 0.18;
+
+    // 加建只能加在「控规容积率上限」之内：等级顶到 planLevel 就停，想再高得等控规调整
+    const cap = Math.min(5, t.planLevel ?? 5);
+    if (t.type === 'r' || t.type === 'c' || t.type === 'i') {
+      if (t.density > 0.75 && t.value > 1300 && t.level < cap) t.level++;
+      else if (t.density < 0.2 && t.value < 640 && t.level > 1) t.level--;
+    }
+    // 用途转化：住区满员且临街 → 破墙开店；商铺长期冷清 → 退回住区
+    // 用途变了，控规等级跟着新用途重取（住区 4 级 → 商业 5 级，CBD 才能长成塔楼群）
+    if (t.type === 'r' && nearRoad && t.density > 0.85 && t.value > 1700 && rnd() < 0.05) {
+      t.type = 'c'; t.level = 1; t.planLevel = planLevelOf('c', t.ring);
+    } else if (t.type === 'c' && t.density < 0.15 && t.value < 560 && rnd() < 0.05) {
+      t.type = 'r'; t.level = 1; t.planLevel = planLevelOf('r', t.ring);
+    }
+  }
+}
+
+/* ═══════════════ 4. 图层渲染 ═══════════════ */
+// 地图只渲染「当前阶段的视野范围」：村庄 11×11（看得见家门口），大都市 39×39（看得见全城）。
+// 视野变化时重建 DOM，其它时候只改颜色。
+const gridEl = document.getElementById('city-grid');
+const VOID_BG = '#07080c';
+let viewSize = 0, curView = -1, layer = 'usage', selected = null;
+// 格子像素尺寸 = 面板可用空间 / 视野格数，取宽高中较小的那个，保证整张地图不被裁切
+function fitGrid() {
+  const wrap = gridEl.parentElement || gridEl;
+  const n = viewSize || 1;
+  const availW = Math.max(160, (wrap.clientWidth || 620) - 6);
+  const availH = Math.max(160, (wrap.clientHeight || 460) - 6);
+  const cell = Math.max(4, Math.min(46, Math.floor(Math.min(availW, availH) / n) - 1));
+  const px = cell * n + (n - 1);
+  gridEl.style.gridTemplateColumns = `repeat(${n},${cell}px)`;
+  gridEl.style.gridTemplateRows = `repeat(${n},${cell}px)`;
+  gridEl.style.width = px + 'px';
+  gridEl.style.height = px + 'px';
+}
+function buildGrid(force) {
+  const vr = curStage().view;
+  if (!force && vr === curView && gridEl.children.length === (vr * 2 + 1) ** 2) { fitGrid(); return; }
+  curView = vr;
+  viewSize = vr * 2 + 1;
+  gridEl.innerHTML = '';
+  const ccx = GW >> 1, ccy = GH >> 1;
+  for (let vy = 0; vy < viewSize; vy++) for (let vx = 0; vx < viewSize; vx++) {
+    const gx = ccx - vr + vx, gy = ccy - vr + vy;
+    const idx = (gx >= 0 && gy >= 0 && gx < GW && gy < GH) ? gy * GW + gx : -1;
+    const d = document.createElement('div');
+    d.className = 'tile' + (idx < 0 ? ' void' : '');
+    d.dataset.i = String(idx);
+    d.onclick = () => {
+      if (idx < 0) return;
+      selected = selected === idx ? null : idx;
+      paintCity(); renderTileInfo();
+    };
+    gridEl.appendChild(d);
+  }
+  fitGrid();
+}
+window.addEventListener('resize', () => { fitGrid(); });
+
+const HEX = h => [parseInt(h.slice(1,3),16), parseInt(h.slice(3,5),16), parseInt(h.slice(5,7),16)];
+function mix(a, b, k) {
+  const A = HEX(a), B = HEX(b);
+  return `rgb(${A.map((v,i)=>Math.round(v+(B[i]-v)*Math.max(0,Math.min(1,k)))).join(',')})`;
+}
+function shade(a, k) { const A = HEX(a); return `rgb(${A.map(v=>Math.min(255,Math.round(v*k))).join(',')})`; }
+const HEAT = ['#123a6b','#1d7fa8','#38b764','#f3c13a','#e6484f'];
+function heat(t) {
+  const k = Math.max(0, Math.min(1, t)) * (HEAT.length - 1);
+  const i = Math.min(HEAT.length - 2, Math.floor(k));
+  return mix(HEAT[i], HEAT[i + 1], k - i);
+}
+function layerVal(t) {
+  if (layer === 'value') return Math.min(1, t.value / 3000);
+  if (layer === 'density') return t.density;
+  if (layer === 'pollution') return t.pollution;
+  if (layer === 'level') return (t.level - 1) / 4;
+  if (layer === 'amenity') return t.amenity;
+  return 0;
+}
+function paintCity() {
+  const kids = gridEl.children;
+  for (let k = 0; k < kids.length; k++) {
+    const el = kids[k], idx = Number(el.dataset.i);
+    if (idx < 0 || !tiles[idx]) { el.style.background = VOID_BG; continue; }
+    const t = tiles[idx];
+    let bg;
+    if (!t.dev) bg = TILE_BASE.e;
+    else if (layer === 'usage') {
+      bg = shade(TILE_BASE[t.type] || TILE_BASE.e, 0.7 + (t.level - 1) * 0.15);
+      if (t.pollution > 0.05) bg = mix(bg, '#6b4a2b', Math.min(0.55, t.pollution));
+    } else bg = heat(layerVal(t));
+    el.style.background = bg;
+    el.classList.toggle('sel', selected === idx);
+  }
+}
+
+/* 图例 */
+function renderLegend() {
+  const el = document.getElementById('map-legend');
+  if (layer === 'usage') {
+    el.innerHTML = `<div class="lg-title">色块含义 <span class="lg-sub">亮度=等级 · 棕色=污染</span></div>` +
+      ['r','c','i','road','p','w','s','h','e'].map(k =>
+        `<div class="lg-item"><span class="lg-sw" style="background:${TILE_BASE[k]}"></span>${TILE_NAME[k]}</div>`).join('');
+  } else {
+    const [, name, hint] = LAYERS.find(l => l[0] === layer);
+    el.innerHTML = `<div class="lg-title">${name}图层</div><div class="lg-bar"></div>
+      <div class="lg-scale"><span>低</span><span>高</span></div><div class="lg-note">${hint}</div>`;
+  }
+}
+
+/* 图层按钮 */
+(function buildTools() {
+  const el = document.getElementById('map-tools');
+  LAYERS.forEach(([id, name]) => {
+    const b = document.createElement('button');
+    b.className = 'layer-btn' + (id === layer ? ' active' : '');
+    b.textContent = name;
+    b.onclick = () => {
+      layer = id;
+      el.querySelectorAll('.layer-btn').forEach(x => x.classList.toggle('active', x === b));
+      renderLegend(); paintCity();
+    };
+    el.appendChild(b);
+  });
+})();
+
+/* 地块详情 */
+function renderTileInfo() {
+  const el = document.getElementById('tile-info');
+  if (selected === null) { el.classList.add('hidden'); return; }
+  const t = tiles[selected];
+  const ring = Math.min(t.ring ?? 5, 5);
+  const isBuilt = t.type !== 'road' && t.type !== 'e';
+  const far = farOf(t.type, t.level), farPlan = farOf(t.type, t.planLevel ?? t.level);
+  const cap = popCapOf(t.type, t.level), job = jobCapOf(t.type, t.level);
+  const svc = serviceCapOf(t.type, t.level);
+  const rows = [
+    ['坐标', `${selected % GW} , ${Math.floor(selected / GW)}`],
+    ['用途', TILE_NAME[t.type]],
+    ['所在环带', RING_LABELS[ring]],
+    ['状态', t.dev ? '已建成' : '待开发']
+  ];
+  if (t.type === 'road') {
+    rows.push(['道路等级', ROAD_LABEL[t.rclass || 1]], ['红线宽度', (ROAD_WIDTH[t.rclass || 1]) + ' m']);
+  } else if (isBuilt) {
+    // 规划指标：都是「控规给的法定上限」与「现状开发强度」成对出现，方便对照看还剩多少余地
+    rows.push(
+      ['开发强度', `${t.level} 级 / 控规 ${t.planLevel ?? '-'} 级`],
+      ['容积率', `${far.toFixed(2)}（控规上限 ${farPlan.toFixed(2)}）`],
+      ['建筑密度', `${(coverageOf(t.type, t.level) * 100).toFixed(0)}%`],
+      ['绿地率', `${(greenRateOf(t.type, t.level) * 100).toFixed(0)}%`],
+      ['建筑层数', `${floorsOf(t.type, t.level).toFixed(1)} 层 · 限高 ${Math.round(floorsOf(t.type, t.level) * 3)} m`],
+      ['建筑面积', `${Math.round(gfaOf(t.type, t.level)).toLocaleString('zh-CN')} ㎡`]
+    );
+    if (cap > 0) rows.push(['承载人口', `${cap.toLocaleString('zh-CN')} 人`]);
+    if (job > 0) rows.push(['岗位承载', `${Math.round(job).toLocaleString('zh-CN')} 个`]);
+    if (svc) rows.push([svc[0], `${svc[1].toLocaleString('zh-CN')} ${svc[2]}`]);
+  }
+  rows.push(
+    ['等级', t.level + ' 级'],
+    ['密度', (t.density * 100).toFixed(0) + '%'],
+    ['地价', landPrice(t.value)],
+    ['污染', (t.pollution * 100).toFixed(0) + '%'],
+    ['公共服务', (t.amenity * 100).toFixed(0) + '%']
+  );
+  el.classList.remove('hidden');
+  el.innerHTML = `<div class="ti-head"><b>地块详情</b><button class="ti-close" id="ti-x">×</button></div>` +
+    rows.map(([k, v]) => `<div class="ti-row"><span class="ti-k">${k}</span><span class="ti-v">${v}</span></div>`).join('');
+  document.getElementById('ti-x').onclick = () => { selected = null; paintCity(); renderTileInfo(); };
+}
+
+/* ═══════════════ 5. 弹窗 / 暂停恢复 ═══════════════ */
+const modal = document.getElementById('concept-modal');
+let resumeSpeed = null;
+function showModal(html) {
+  if (speed > 0) { resumeSpeed = speed; pauseDemo(); }
+  modal.classList.remove('hidden');
+  modal.innerHTML = `<div class="card">${html}</div>`;
+  modal.querySelectorAll('[data-close]').forEach(b => b.onclick = closeModal);
+}
+function closeModal() {
+  modal.classList.add('hidden'); modal.innerHTML = '';
+  if (resumeSpeed !== null) { resumeDemo(resumeSpeed); resumeSpeed = null; }
+}
+modal.onclick = e => { if (e.target === modal) closeModal(); };
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+/* 名词释义 */
+function showTerm(key) {
+  const t = termByKey(key);
+  if (!t) return;
+  const ch = CH_LABEL[t.chapter];
+  if (!state.unlocked.includes(key)) {
+    const c = buildCtx();
+    const un = [];
+    if (t.unlocks && t.unlocks.levers.length) un.push('政策滑杆：' + t.unlocks.levers.map(id => (leverById(id) || {}).label || id).join('、'));
+    if (t.unlocks && t.unlocks.metrics.length) un.push('仪表盘指标：' + t.unlocks.metrics.join('、'));
+    showModal(`<div class="chapter">${ch}</div><h2>🔒 ${t.name}</h2>
+      <h4>基本定义</h4><p>${t.def}</p>
+      <h4>解锁条件</h4><p>${reqHint(t.req, c) || '达成特定条件'}</p>
+      <div class="req-bar"><div class="req-fill" style="width:${Math.round(Math.max(0, Math.min(1, reqProgress(t.req, c))) * 100)}%"></div></div>
+      ${un.length ? `<h4>解锁后开放</h4><p>${un.join('；')}</p>` : ''}
+      <p class="muted">名词不再靠「挂机等时间」自动出现——它由你拧过的旋钮和你亲手造成的城市状态决定。</p>
+      <button class="close" data-close>关闭</button>`);
+    return;
+  }
+  const rel = t.related.length ? t.related.map(k => { const r = termByKey(k); return r ? `<span class="tag">${r.name}</span>` : ''; }).join('') : '—';
+  const un = [];
+  if (t.unlocks && t.unlocks.levers.length) un.push('政策滑杆：' + t.unlocks.levers.map(id => (leverById(id) || {}).label || id).join('、'));
+  if (t.unlocks && t.unlocks.metrics.length) un.push('仪表盘指标：' + t.unlocks.metrics.join('、'));
+  showModal(`<div class="chapter">${ch}</div><h2>${t.name}</h2>
+    <h4>定义</h4><p>${t.def}</p>
+    <h4>影响</h4><p>${t.effect}</p>
+    ${un.length ? `<h4>解锁了哪些可调参数</h4><p>${un.join('；')}</p>` : ''}
+    <h4>关联名词</h4><p>${rel}</p>
+    <div class="quiz-actions"><button class="quiz-submit" id="term-quiz">📖 做一道闯关题</button>
+      <button class="close" data-close>关闭</button></div>`);
+  const qb = modal.querySelector('#term-quiz');
+  if (qb) qb.onclick = () => openTermQuiz(key, () => { renderKnowledge(); renderQuizBtn(); });
+}
+
+function showRules() {
+  showModal(`<div class="chapter">游戏说明</div><h2>MacroVille · 微观城邦</h2>
+    <p>一座城市经济沙盒。你先设定一座城市的<b>初始条件</b>，再用政策杠杆干预它，看它自己生长、波动、涌现。</p>
+    <h4>循环式玩法</h4>
+    <p>一轮 = <b>个人 → 企业 → 政府</b> 各主导一段，走完回到个人视角进入下一轮，共 ${setup.rounds} 轮。
+      企业和政府的参数会反过来改变家庭面对的物价、工资与税率，所以第二轮回到个人视角时，你看到的已经不是同一道题。</p>
+    <h4>概念怎么解锁</h4>
+    <p>概念按轮次<b>分层</b>：第 N 轮只放出第 N 层，而且<b>一次只点亮一个</b>、隔几个月才来下一个。
+      每个概念都会告诉你"是因为你做了什么"——条件来自你拧过的旋钮、你造成的城市状态，
+      甚至是<b>城市正处在经济周期的哪个阶段</b>。挂机推不动它。</p>
+    <h4>经济周期</h4>
+    <p>顶栏左侧的「${PHASE_META.recovery.icon} 阶段条」是这座城市的天气：景气在<b>繁荣 → 衰退 → 萧条 → 复苏</b>之间循环，
+      点开能看到景气曲线与产出缺口。福利、公共支出、税率是<b>自动稳定器</b>（削平谷底）；
+      产业补贴、扩产、库存与贸易开放是<b>放大器</b>（让波动更剧烈、周期更短）。周期是你自己拧出来的。</p>
+    <h4>闯关问答</h4>
+    <p>每解锁一个名词，都会弹一次「简介 + 一道题」（题型参考<b>中级经济师</b>）。答对得积分、连对有加成、达标发奖杯，
+      进度在顶栏「🎓」里随时查看、可重做错题。全部 ${TERMS.length} 个名词通关，你就走完了中级经济师经济学基础的主干知识点。</p>
+    <h4>看什么</h4>
+    <p>顶栏是<b>随视角切换的实时变量条</b>：个人看家庭账本、企业看经营盘面、政府看宏观盘面；点开有详情与累积曲线。
+      右侧仪表盘与政策滑杆随你认识的名词逐个开放。</p>
+    <h4>地图不是色块</h4>
+    <p>每格都有密度、地价、污染、等级与公共服务。中心是 CBD，向外依次是内城住宅、住商混合、工业带（只在下风向）、绿带；
+      视野随城市长大逐步拉远。切图层看分布，点格子看细节——工厂围城会真的把居民赶走。</p>
+    <h4>数值口径</h4>
+    <p>所有数字都按现实量级标定：钱用<b>元</b>、工资用<b>元/月</b>、人口用<b>人</b>（1 户 ≈ 2.6 人）、
+      商品用<b>件</b>、地价用<b>元/㎡</b>、CPI 用<b>点</b>（默认政策 = 100）。
+      顶栏的「单位」按钮里有完整对照表与每个口径的现实锚点，看不懂某个数字时点开对一下。</p>
+    <h4>没有输赢</h4>
+    <p>繁荣与衰退都是参数自然跑出来的结果，重要的是理解它们怎么发生。</p>
+    <button class="close" data-close>开始游戏</button>`);
+}
+
+/* ═══════════════ 6. 视角（渐进解锁） ═══════════════ */
+const PERSP = [
+  { id:'household', label:'个人视角', icon:'🧑', who:'你是一名普通居民', duty:'决定怎么花钱、要不要找工作、练什么技能', watch:'可支配收入、生活水平、家庭财富、抗风险缓冲' },
+  { id:'firm', label:'企业视角', icon:'🏭', who:'你是一家企业的经营者', duty:'决定卖什么价、开多少工资、要不要扩产、投多少研发', watch:'平均利润、产能利用率、平均售价、总营收' },
+  { id:'gov', label:'政府视角', icon:'🏛', who:'你是这座城市的治理者', duty:'决定税率、公共支出、补贴与贸易政策', watch:'GDP、失业率、CPI、财政、幸福度、基尼系数' }
+];
+let perspective = 'household';
+let seenPersp = ['household'];
+
+// 统一入口：切视角要同时更新 tab、政策面板、仪表盘与顶栏变量条
+function setPerspective(id) {
+  perspective = id;
+  markPhase(id);
+  syncTabs(); renderPolicy(); renderDash(); renderHud(); renderCycle();
+}
+
+const tabsEl = document.getElementById('tab-group');
+const tabBtns = {};
+PERSP.forEach(p => {
+  const b = document.createElement('button');
+  b.className = 'tab';
+  b.onclick = () => {
+    if (!unlockedPersp().includes(p.id)) { showLockedPersp(p); return; }
+    if (p.id === perspective) return;
+    setPerspective(p.id);
+  };
+  tabsEl.appendChild(b); tabBtns[p.id] = b;
+});
+function syncTabs() {
+  const open = unlockedPersp();
+  PERSP.forEach(p => {
+    const b = tabBtns[p.id], ok = open.includes(p.id);
+    b.classList.toggle('locked', !ok);
+    b.classList.toggle('active', ok && p.id === perspective);
+    if (ok) { b.innerHTML = `${p.icon} ${p.label}`; b.title = p.who + '：' + p.duty; }
+    else {
+      const gate = STAGES.find(s => s.persp === p.id);
+      b.innerHTML = `🔒 ${p.label}<span class="tab-sub">${gate ? gate.name : ''}解锁</span>`;
+      b.title = '尚未解锁，点击查看条件';
+    }
+  });
+}
+function showLockedPersp(p) {
+  const gate = STAGES.find(s => s.persp === p.id);
+  showModal(`<div class="chapter">视角未解锁</div><h2>${p.icon} ${p.label}</h2>
+    <p>游戏从<b>个人视角</b>开始——你先是这座城市里的一名普通居民。城市长大之后，你才有机会站到经营者、治理者的位置上。</p>
+    <h4>解锁条件</h4>
+    <p>城市发展到「${gate.name}」（人口 ≥ ${gate.minPop.toLocaleString()} 人，且存续 ≥ ${gate.minMonths} 个月）。</p>
+    <p class="muted">当前人口 ${people(state.pop)} · 已存续 ${state.t} 个月 · 阶段「${curStage().name}」</p>
+    <h4>解锁后</h4><p><b>${p.who}</b>：${p.duty}。重点关注 ${p.watch}。</p>
+    <button class="close" data-close>知道了</button>`);
+}
+function showUnlockPersp(p) {
+  showModal(`<div class="chapter">新视角解锁</div><h2>${p.icon} ${p.label}</h2>
+    <p>城市长大了，你现在可以换一个身份看它——<b>${p.who}</b>。</p>
+    <h4>你要做的决策</h4><p>${p.duty}。</p>
+    <h4>重点关注</h4><p>${p.watch}。</p>
+    <p class="muted">三种视角操作的是同一座城市：你在企业视角提高工资，会以成本的形式反映到政府视角的物价与就业上。</p>
+    <button class="close" data-close>开始体验</button>`);
+}
+function checkPerspUnlock() {
+  const open = unlockedPersp();
+  const fresh = open.filter(p => !seenPersp.includes(p));
+  seenPersp = open;
+  if (!fresh.length) return;
+  const id = fresh[fresh.length - 1];
+  setPerspective(id);
+  showUnlockPersp(PERSP.find(p => p.id === id));
+}
+
+/* ═══════════════ 7. 政策 / 仪表盘 ═══════════════ */
+const SCOPE_TITLE = { gov:'政府政策', household:'家庭决策', firm:'企业经营' };
+const SCOPE_KEY = { gov:'gov', household:'household', firm:'firm' };
+function renderPolicy() {
+  const el = document.getElementById('policy');
+  const scope = perspective;
+  const vals = PARAMS[SCOPE_KEY[scope]];
+  const open = LEVERS.filter(l => l.scope === scope && leverOpen(l));
+  const lock = LEVERS.filter(l => l.scope === scope && !leverOpen(l));
+  el.innerHTML = `<h3>${SCOPE_TITLE[scope]}</h3><div id="levers"></div>
+    <p class="muted" style="margin-top:8px;font-size:10.5px">拖动即改变经济系统的约束；点名称看释义。随城市成长与概念解锁，会放出更多工具。</p>`;
+  const wrap = el.querySelector('#levers');
+  open.forEach(l => {
+    const row = document.createElement('div');
+    row.className = 'slider-row';
+    row.innerHTML = `<label>${l.label}</label><input type="range" min="${l.min}" max="${l.max}" step="${l.step}" value="${vals[l.id]}"><span class="val">${l.fmt(vals[l.id])}</span>`;
+    row.querySelector('label').onclick = () => showTerm(l.id);
+    const inp = row.querySelector('input'), out = row.querySelector('.val');
+    inp.oninput = () => {
+      const v = parseFloat(inp.value);
+      vals[l.id] = v; out.textContent = l.fmt(v);
+      recomputeFromLevers();
+      // 拧旋钮 = 留下玩家痕迹。立刻结算一次：条件满足的名词当场点亮，
+      // 它绑定的新滑杆/新指标也当场放出（这就是「决策 → 图谱」的联动）。
+      const fresh = runUnlocks(false);
+      renderDash(); renderStats(); renderKnowledge(); renderStage(); renderCycle();
+      if (fresh.length) { announceUnlocks(fresh); renderPolicy(); }
+    };
+    wrap.appendChild(row);
+  });
+  lock.forEach(l => {
+    const row = document.createElement('div');
+    row.className = 'slider-row locked-row';
+    row.innerHTML = `<label>🔒 ${l.label}</label><span class="lock-note">${leverWhy(l)}</span>`;
+    row.querySelector('label').onclick = () => showTerm(l.id);
+    wrap.appendChild(row);
+  });
+}
+
+// 杠杆 → 指标（预览用的轻量传导，方向与真实引擎一致）
+// CPI 以“默认参数”为 100 基准做归一，否则默认值就会显示成 180 这种离谱物价。
+// 最低工资以 ¥2,500 为默认锚点：mwK 把「相对默认值的偏移」折算成成本单位，
+// 这样滑杆拉到 ¥15,000 时成本指数 +1.25，售价与 CPI 一起被推上去。
+const MW0 = 2500;
+const mwK = () => (gov.minWage - MW0) / 10000;
+const COST0 = 1 + 1.0 * 0.35 + 0.3;            // 默认成本指数：底薪不偏移 / 工资系数 1.0 / 加成 0.3
+const PRICE0 = 0.9 + 0.3 * 0.3;                // 默认加成对应的定价系数
+function recomputeFromLevers() {
+  const demandK = 1 + gov.tradeOpenness * 0.5;
+  const consK = hp.consumptionPropensity * (1 - hp.savingsRate * 0.6) * demandK;
+  const k = mwK();
+  const costK = 1 + k + fp.wageMultiplier * 0.35 + fp.markup;
+  const costRel = (costK / COST0) * ((0.9 + fp.markup * 0.3) / PRICE0);
+  // 先算出「政策基准值」，周期再叠加在它上面——这样拧旋钮与周期互不覆盖
+  const b = state.base;
+  b.price = BASE_PRICE * costRel;               // ¥/件，默认约 ¥104
+  b.cpi = 100 * costRel;                        // 点，默认 100
+  // 工资锚在基准工资 ¥8,000 上：工资出价与技能投入各占一部分，最低工资只做小幅抬升
+  b.wage = BASE_WAGE * (0.62 + 0.28 * fp.wageMultiplier + 0.25 * hp.skillInvest) + k * 1600;
+  b.cons = Math.max(CONS_FLOOR, Math.min(b.wage * 1.05, b.wage * consK * 0.8));
+  // 就业率的锚点对齐现实：城镇调查失业率的常态是 5% 左右，所以默认就业率约 95%
+  b.emp = bcClamp(0.94 + gov.industrySubsidy * 0.04 - k * 0.22 + gov.publicSpend * 0.03, 0.78, 0.995);
+  b.util = bcClamp(0.62 + fp.expansion * 0.18 - fp.wageMultiplier * 0.06, 0.3, 1);
+  b.rev = b.price * QTY_PER_FIRM * b.util;      // ¥/月：一家企业满产月营收约 ¥10 万
+  // 利润率：加成越高越厚，最低工资/税率越高越薄，默认落在 7% 上下（与现实制造业接近）
+  const margin = 0.04 + fp.markup * 0.12 - k * 0.05 - gov.taxRate * 0.06
+    + gov.industrySubsidy * 0.04 + fp.rdInvest * 0.02;
+  b.profit = b.rev * margin;                    // ¥/月
+  b.happy = Math.max(30, Math.min(85,
+    58 + gov.publicSpend * 12 + gov.welfare * 10 + gov.eduSubsidy * 4 - Math.max(0, b.cpi - 105) * 0.25));
+  applyCycle();
+}
+
+const MACRO_DEFS = () => [
+  ['常住人口', people(state.pop), 'population'],
+  ['就业率', (state.emp * 100).toFixed(1) + '%', 'employmentRate'],
+  ['平均工资', yuanMo(state.wage), 'avgWage'],
+  ['CPI', points(state.cpi), 'cpi'],
+  ['GDP（月）', yuan(state.gdp), 'gdp'],
+  ['财政余额', yuan(state.treasury), 'treasury'],
+  ['幸福度', state.happy.toFixed(0) + ' 分', 'happiness'],
+  ['基尼系数', state.gini.toFixed(2), 'gini']
+];
+const HOUSE_DEFS = () => {
+  const di = state.wage * (1 - gov.taxRate);          // 户均税后月收入（¥/月）
+  const cover = state.savings / Math.max(1, state.cons); // 存款能撑几个月
+  return [
+    ['可支配收入', yuanMo(di), 'disposableIncome', di >= 4000],
+    ['生活水平', state.happy.toFixed(0) + ' 分', 'livingStandard', state.happy >= 55],
+    ['家庭财富', yuan(state.savings), 'wealth', state.savings >= 60000],
+    ['抗风险缓冲', cover.toFixed(1) + ' 月', 'resilience', cover >= 2]
+  ];
+};
+const FIRM_DEFS = () => [
+  ['平均利润', yuanMo(state.firmProfit), 'avgProfit', state.firmProfit >= 0],
+  ['产能利用率', (state.util * 100).toFixed(0) + '%', 'capacityUtil', state.util >= 0.5 && state.util <= 0.95],
+  ['平均售价', '¥' + state.price.toFixed(0) + '/件', 'avgPrice', state.price >= 60 && state.price <= 200],
+  ['总营收', yuanMo(state.rev), 'totalRevenue', true]
+];
+
+function kpiCard(label, value, key, ok) {
+  if (!termOk(key)) {
+    const g = metricGate(key);
+    const why = g ? reqHint(g.req, buildCtx()) : '';
+    return `<div class="kpi locked"><div class="k">🔒 ${label}</div><div class="v">${g ? '解锁「' + g.name + '」' : '待解锁'}</div>` +
+      (why ? `<div class="k-why">${why}</div>` : '') + `</div>`;
+  }
+  return `<div class="kpi ${ok ? '' : 'warn'}"><div class="k">${label}${ok ? '' : ' ⚠'}</div><div class="v">${value}</div></div>`;
+}
+function renderDash() {
+  const el = document.getElementById('dashboard');
+  const p = PERSP.find(x => x.id === perspective);
+  let defs;
+  if (perspective === 'gov') defs = MACRO_DEFS().map(d => [d[0], d[1], d[2], true]);
+  else if (perspective === 'household') defs = HOUSE_DEFS();
+  else defs = FIRM_DEFS();
+  const hints = [];
+  if (perspective === 'household') {
+    if (state.wage * (1 - gov.taxRate) < 4000) hints.push('可支配收入偏低：降低税率、提升技能投入或劳动参与率。');
+    if (state.happy < 55) hints.push('生活水平偏低：增加公共支出或福利能直接改善居民体验。');
+    if (state.savings < 60000) hints.push('财富积累不足：适度下调储蓄率或提升收入可加快积累。');
+  } else if (perspective === 'firm') {
+    if (state.firmProfit < 0) hints.push('企业整体亏损：下调加价率/工资出价，或提高研发与库存策略。');
+    if (state.util < 0.5) hints.push('产能利用率偏低：需求不足或招工困难，可提高工资出价、下调加价率。');
+    if (state.util > 0.95) hints.push('产能接近饱和：提高扩产意愿可扩容接单。');
+  }
+  el.innerHTML = `<h3>${p.label}指标 <span class="k-count">${state.unlocked.length}/${TERMS.length} 词条</span></h3>
+    <div class="kpi-grid">${defs.map(d => kpiCard(d[0], d[1], d[2], d[3])).join('')}</div>
+    ${hints.length ? `<div class="hints"><div class="hints-title">⚠ 软提示（偏离建议区间）</div>${hints.map(h => `<div class="hint-item">${h}</div>`).join('')}</div>` : ''}
+    <p class="muted" style="margin-top:7px;font-size:10.5px">指标随你解锁的「名词」逐个开放。</p>`;
+  el.querySelectorAll('.kpi').forEach((c, i) => { c.onclick = () => showTerm(defs[i][2]); });
+}
+
+function renderKnowledge() {
+  const el = document.getElementById('knowledge');
+  const total = TERMS.length, un = state.unlocked.length;
+  const tier = Math.min(5, state.cycle.round);
+  const tierList = TERMS.filter(t => (t.tier || 1) === tier);
+  const tierUn = tierList.filter(t => state.unlocked.includes(t.key)).length;
+  let html = `<h3>经济学图谱 <span class="k-count">第 ${tier} 层 <b>${tierUn}</b>/${tierList.length} · 总计 ${un}/${total}</span></h3>`;
+  html += `<div class="muted" style="margin:-4px 0 8px;font-size:10.5px">概念按<b>循环轮次</b>分层：第 N 轮只放出第 N 层，一次点亮一个、隔几个月才来下一个。</div>`;
+  ['micro', 'industrial', 'macro'].forEach(ch => {
+    const list = TERMS.filter(t => t.chapter === ch);
+    const u = list.filter(t => state.unlocked.includes(t.key)).length;
+    html += `<div class="kchapter"><span>${CH_LABEL[ch]}</span><span>${u}/${list.length}</span></div><div class="kterms">`;
+    html += list.map(t => {
+      const ok = state.unlocked.includes(t.key);
+      const tt = t.tier || 1;
+      const tip = ok ? t.name
+        : `第 ${tt} 层${tt > tier ? `（第 ${tt} 轮才开放）` : ''}：${reqHint(t.req, buildCtx())}`;
+      const mk = ok ? termMark(state.quiz, t.key) : 'none';
+      return `<button class="kchip ${ok ? 'unlocked' : 'locked'} ${mk === 'ok' ? 'mark-ok' : mk === 'wrong' ? 'mark-wrong' : ''}" data-k="${t.key}" title="${tip}">${ok ? '' : '🔒'}${t.name}</button>`;
+    }).join('');
+    html += `</div>`;
+  });
+  el.innerHTML = html;
+  el.querySelectorAll('.kchip').forEach(b => b.onclick = () => showTerm(b.dataset.k));
+}
+
+/* ═══════════════ 8. 顶栏变量条 / 循环条 / 阶段条 ═══════════════ */
+const pct1 = v => (v * 100).toFixed(0) + '%';
+const int0 = v => Math.round(v).toLocaleString('zh-CN');
+// 三套变量：个人看家庭账本，企业看经营盘面，政府看宏观盘面
+const HUD_VARS = {
+  household: [
+    ['可支配收入','💰','disposableIncome', v=>yuanMo(v), '就业家庭税后月薪的平均数（元/月）。企业工资出价与政府税率共同决定它。', v=>v<4000],
+    ['生活水平','🙂','livingStandard', v=>v.toFixed(0) + ' 分', '居民满意度平均（0-100 分）。受购买力、储蓄、公共服务、失业率与拥挤成本影响。', v=>v<55],
+    ['家庭财富','🏦','wealth', v=>yuan(v), '家庭储蓄的平均数（元），也是抵抗失业冲击的底气。', v=>v<60000],
+    ['抗风险缓冲','🛟','resilience', v=>v.toFixed(1)+' 月', '储蓄能支撑多少个月的开销。低于 2 个月，一次失业就击穿家庭账本。', v=>v<2],
+    ['入不敷出','📉','poorShare', pct1, '储蓄撑不过一个月开销的家庭占比——平均值好看不代表没有家庭在挨饿。', v=>v>0.35]
+  ],
+  firm: [
+    ['平均利润','📊','avgProfit', v=>yuanMo(v), '全城企业月均利润（元/月）。售价、工资、税收与补贴一起决定正负。', v=>v<0],
+    ['产能利用率','⚙️','capacityUtil', pct1, '已雇人数 / 岗位容量。低于 50% 说明需求不足或招不到人。', v=>v<0.5||v>0.97],
+    ['平均售价','🏷','avgPrice', v=>'¥'+v.toFixed(0)+'/件', '企业定价的平均（元/件），由加价率锚定，是 CPI 的上游。', null],
+    ['总营收','💵','revenue', v=>yuanMo(v), '全城企业本月销售额合计（元/月），即这座城市当月的产出规模。', null],
+    ['岗位空缺率','🪑','vacancyRate', pct1, '招不到人的岗位占比。空缺越多，越会吸引外来人口迁入。', v=>v>0.4],
+    ['累计倒闭','💀','bankruptcies', v=>Math.round(v)+' 家', '长期亏损且已裁到无人可裁的企业总数。政策拧过头，这是最先响的警报。', v=>v>10]
+  ],
+  gov: [
+    ['GDP','🏛','gdp', v=>yuan(v), '当月经济总产出（元/月，增加值口径）：消费 + 投资 + 政府支出共同驱动。', null],
+    ['失业率','🚩','unemploymentRate', pct1, '想工作却找不到岗位的人占劳动力的比例。', v=>v>0.08],
+    ['CPI','🌡','cpi', v=>points(v), '居民消费价格指数（点），基期 100。高于 100 通胀，低于 100 通缩。', v=>v>105||v<95],
+    ['财政余额','🏦','treasury', v=>yuan(v), '税收减去各项支出的累计结余（元）。', v=>v<0],
+    ['基尼系数','⚖️','gini', v=>v.toFixed(3), '收入分配的不平等程度，0 完全平均、1 完全集中。', v=>v>0.45],
+    ['幸福度','😊','happiness', v=>v.toFixed(0) + ' 分', '居民平均主观感受（0-100 分），决定人口是流入还是流出。', v=>v<55]
+  ]
+};
+const HUD_STATE_KEYS = { gdp:'gdp', cpi:'cpi', treasury:'treasury', gini:'gini', happiness:'happy',
+  unemploymentRate:null, employmentRate:null };
+function hudSeries(key) {
+  if (state.series[key]) return state.series[key];
+  if (key === 'unemploymentRate') return state.series.vacancyRate.map(() => 1 - state.emp);
+  const sk = HUD_STATE_KEYS[key];
+  if (sk) return [state[sk]];
+  return [];
+}
+// 顶栏显示的必须是「此刻」的值：拧完滑杆当场就变。
+// 月度序列只用来画迷你曲线，不能拿来当当前值——否则顶栏总是慢一个月，
+// 而且会和右侧仪表盘（实时计算）对不上，玩家会以为两个数字打架。
+const HUD_LIVE = {
+  disposableIncome: () => state.wage * (1 - gov.taxRate),
+  livingStandard: () => state.happy,
+  wealth: () => state.savings,
+  resilience: () => state.savings / Math.max(1, state.cons),
+  avgProfit: () => state.firmProfit,
+  capacityUtil: () => state.util,
+  avgPrice: () => state.price,
+  revenue: () => state.rev,
+  vacancyRate: () => emergeStats().vacancyRate,   // 与仪表盘同源，避免两处口径打架
+  bankruptcies: () => state.bankruptcies,
+  poorShare: () => emergeStats().poorShare,
+  gdp: () => state.gdp,
+  cpi: () => state.cpi,
+  treasury: () => state.treasury,
+  gini: () => state.gini,
+  happiness: () => state.happy,
+  unemploymentRate: () => 1 - state.emp,
+  employmentRate: () => state.emp
+};
+function hudValue(key) {
+  const live = HUD_LIVE[key];
+  if (live) return live();
+  const a = hudSeries(key);
+  if (a && a.length) return a[a.length - 1];
+  const sk = HUD_STATE_KEYS[key];
+  return sk ? state[sk] : 0;
+}
+function sparkline(arr, up) {
+  if (!arr || arr.length < 2) return '';
+  const tail = arr.slice(-48);
+  const min = Math.min(...tail), max = Math.max(...tail), span = max - min || 1;
+  const pts = tail.map((v, i) => `${(i / (tail.length - 1)) * 44 + 1},${13 - ((v - min) / span) * 11}`).join(' ');
+  return `<svg class="hc-spark" viewBox="0 0 46 15" preserveAspectRatio="none"><polyline points="${pts}" fill="none" stroke="${up ? 'var(--bad)' : 'var(--good)'}" stroke-width="1.2"/></svg>`;
+}
+function lineChart(arr, fmt) {
+  const data = arr.slice(-120);
+  if (data.length < 2) return '<p class="muted">这项数据还没有足够的历史，再跑几个月就能画出曲线。</p>';
+  const W = 480, H = 150, pad = 24;
+  const min = Math.min(...data), max = Math.max(...data), span = max - min || 1;
+  const x = i => pad + (i / (data.length - 1)) * (W - pad * 2);
+  const y = v => H - 20 - ((v - min) / span) * (H - 44);
+  const pts = data.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+  const area = `${x(0).toFixed(1)},${H-20} ${pts} ${x(data.length-1).toFixed(1)},${H-20}`;
+  const grid = [0,0.25,0.5,0.75,1].map(r => `<line x1="${pad}" y1="${(20+r*(H-44)).toFixed(1)}" x2="${W-pad}" y2="${(20+r*(H-44)).toFixed(1)}" stroke="#242b3a" stroke-width="1"/>`).join('');
+  return `<svg class="det-chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${grid}
+      <polygon points="${area}" fill="rgba(79,157,255,.14)"/>
+      <polyline points="${pts}" fill="none" stroke="var(--accent)" stroke-width="2"/>
+      <text x="4" y="14" fill="#8b93a7" font-size="10">${fmt(max)}</text>
+      <text x="4" y="${H-6}" fill="#8b93a7" font-size="10">${fmt(min)}</text>
+      <text x="${W-pad}" y="14" text-anchor="end" fill="#e6e9f0" font-size="10">${fmt(data[data.length-1])}</text>
+    </svg><div class="det-axis"><span>最早</span><span>最近 ${data.length} 个月</span></div>`;
+}
+// renderStats 是历史名字：顶栏现在渲染的是"随视角切换的变量条"
+function renderStats() { renderHud(); }
+function renderHud() {
+  const el = document.getElementById('hud');
+  if (!el) return;
+  const defs = HUD_VARS[perspective] || HUD_VARS.household;
+  el.innerHTML = defs.map(([label, icon, key, fmt, desc, warn]) => {
+    const v = hudValue(key);
+    const arr = hudSeries(key);
+    const prev = arr && arr.length >= 2 ? arr[arr.length - 2] : null;
+    const delta = prev === null ? 0 : v - prev;
+    const arrow = Math.abs(delta) < 1e-9 ? '' : (delta > 0 ? '▲' : '▼');
+    const w = warn ? warn(v) : false;
+    return `<button class="hud-chip ${w ? 'warn' : ''}" data-v="${key}" title="${desc}（点击查看详细数据与累积曲线）">
+      <span class="hc-icon">${icon}</span>
+      <span class="hc-body"><span class="hc-label">${label}</span>
+        <span class="hc-value">${fmt(v)}<span class="hc-arrow ${delta >= 0 ? 'up' : 'down'}">${arrow}</span></span></span>
+      ${sparkline(arr, delta >= 0)}</button>`;
+  }).join('');
+  el.querySelectorAll('.hud-chip').forEach(b => {
+    b.onclick = () => {
+      const def = (HUD_VARS[perspective] || HUD_VARS.household).find(d => d[2] === b.dataset.v);
+      if (def) openVarDetail(def);
+    };
+  });
+}
+function openVarDetail(def) {
+  const [label, icon, key, fmt, desc] = def;
+  const arr = hudSeries(key);
+  const cur = hudValue(key);
+  const stats = arr.length >= 2 ? `
+    <div class="det-row"><span>区间最高</span><b>${fmt(Math.max(...arr))}</b></div>
+    <div class="det-row"><span>区间最低</span><b>${fmt(Math.min(...arr))}</b></div>
+    <div class="det-row"><span>区间均值</span><b>${fmt(arr.reduce((a, b) => a + b, 0) / arr.length)}</b></div>
+    <div class="det-row"><span>记录月数</span><b>${arr.length}</b></div>` : '';
+  const em = emergeStats();
+  const extra = key === 'poorShare'
+    ? `<div class="det-row"><span>最富 10% 财富份额</span><b>${pct1(em.wealthTop10)}</b></div>`
+    : key === 'bankruptcies'
+      ? `<div class="det-row"><span>亏损企业占比</span><b>${pct1(em.lossFirmShare)}</b></div>`
+      : key === 'vacancyRate' ? `<div class="det-row"><span>现存企业数</span><b>${state.firms}</b></div>` : '';
+  showModal(`<div class="chapter">${curStage().name} · ${ORIENT_INFO[state.orientation][1]} · 第 ${state.cycle.round} 轮</div>
+    <h2>${icon} ${label}</h2>
+    <div class="det-now">${fmt(cur)}</div>
+    <h4>这个数是什么</h4><p>${desc}</p>
+    <h4>累积曲线</h4>${lineChart(arr, fmt)}
+    <div class="det-stats">${stats}${extra}</div>
+    <button class="close" data-close>关闭</button>`);
+}
+function renderCycle() {
+  const el = document.getElementById('cycle-bar');
+  if (!el) return;
+  const c = cycleProgress();
+  const dots = Array.from({ length: c.roundsPlanned }, (_, i) =>
+    `<span class="cb-dot ${i + 1 < c.round ? 'on' : i + 1 === c.round ? 'now' : ''}"></span>`).join('');
+  el.innerHTML = `<span class="cb-round">轮次 ${dots} <b>第 ${c.round} / ${c.roundsPlanned} 轮</b></span>
+    <span class="cb-sep">|</span><span>本轮主导 <b>${PHASE_LABEL[c.phase]}</b>（已 ${c.phaseMonths} 个月）</span>
+    ${c.finished ? '<span class="cb-note">· 全部轮次已完成，深层概念全部开放</span>'
+      : `<span class="cb-sep">|</span><span>约 <b>${c.needMonths}</b> 个月后切换到下一站</span>`}`;
+}
+/* ── 经济周期条：阶段 + 景气指数 + 产出缺口，点开看完整曲线 ── */
+function renderBC() {
+  const el = document.getElementById('bc-status');
+  if (!el) return;
+  const b = state.business || initBC();
+  const m = PHASE_META[b.phase] || PHASE_META.recovery;
+  const pos = Math.max(0, Math.min(100, (b.index + 1) * 50));
+  const g = b.outputGap || 0;
+  el.innerHTML = `<span class="bc-phase bc-ph-${b.phase}">${m.icon} ${m.name}</span>
+    <span class="bc-bar"><i style="left:${pos.toFixed(1)}%"></i></span>
+    <span class="bc-num" title="景气指数">${b.index >= 0 ? '+' : ''}${b.index.toFixed(2)}</span>
+    <span class="bc-gap ${g >= 0 ? 'up' : 'down'}" title="产出缺口">缺口 ${g >= 0 ? '+' : ''}${(g * 100).toFixed(1)}%</span>
+    <span class="bc-mon" title="本阶段已持续">${b.phaseMonths}月</span>`;
+  el.onclick = openCycleDetail;
+  renderQuizBtn();
+}
+function announcePhase() {
+  const b = state.business, m = PHASE_META[b.phase];
+  toast(`${m.icon} 经济进入「${m.name}」阶段：${m.desc}`);
+}
+function bcWaveChart(data, hi) {
+  if (data.length < 2) return '<p class="muted">还需要再跑几个月才能看出周期形状。</p>';
+  const W = 480, H = 150, pad = 24;
+  const lo = -hi, span = 2 * hi;
+  const x = i => pad + (i / (data.length - 1)) * (W - pad * 2);
+  const y = v => 20 + ((hi - v) / span) * (H - 44);
+  const pts = data.map((v, i) => `${x(i).toFixed(1)},${y(Math.max(lo, Math.min(hi, v))).toFixed(1)}`).join(' ');
+  const zero = y(0).toFixed(1);
+  return `<svg class="det-chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+    <rect x="${pad}" y="20" width="${W - pad * 2}" height="${(Number(zero) - 20).toFixed(1)}" fill="rgba(229,90,90,.10)"/>
+    <rect x="${pad}" y="${zero}" width="${W - pad * 2}" height="${(H - 20 - Number(zero)).toFixed(1)}" fill="rgba(90,200,130,.10)"/>
+    <line x1="${pad}" y1="${zero}" x2="${W - pad}" y2="${zero}" stroke="#4a5164" stroke-width="1" stroke-dasharray="4 3"/>
+    <polyline points="${pts}" fill="none" stroke="#4f9dff" stroke-width="2"/>
+    <text x="4" y="14" fill="#8b93a7" font-size="10">+${hi} 过热</text>
+    <text x="4" y="${H - 6}" fill="#8b93a7" font-size="10">-${hi} 过冷</text></svg>`;
+}
+function bcGapChart(data) {
+  if (data.length < 2) return '<p class="muted">还需要再跑几个月。</p>';
+  const W = 480, H = 120, pad = 24;
+  const max = Math.max(0.1, ...data.map(Math.abs));
+  const x = i => pad + (i / (data.length - 1)) * (W - pad * 2);
+  const y = v => H / 2 - (v / max) * (H / 2 - 14);
+  const pts = data.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+  const zero = (H / 2).toFixed(1);
+  return `<svg class="det-chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+    <line x1="${pad}" y1="${zero}" x2="${W - pad}" y2="${zero}" stroke="#4a5164" stroke-width="1" stroke-dasharray="4 3"/>
+    <polyline points="${pts}" fill="none" stroke="#f5a623" stroke-width="2"/>
+    <text x="4" y="12" fill="#8b93a7" font-size="10">+${(max * 100).toFixed(0)}%</text>
+    <text x="4" y="${H - 4}" fill="#8b93a7" font-size="10">-${(max * 100).toFixed(0)}%</text></svg>`;
+}
+function openCycleDetail() {
+  const b = state.business || initBC(), m = PHASE_META[b.phase] || PHASE_META.recovery, s = bcShape();
+  const hist = b.history.slice(-120), gap = b.gapHistory.slice(-120);
+  const counts = BC_ORDER.map(p =>
+    `<div class="det-row"><span>${PHASE_META[p].icon} ${PHASE_META[p].name}</span><b>${b.phaseCount[p]} 次</b></div>`).join('');
+  showModal(`<div class="chapter">经济周期</div><h2>${m.icon} ${m.name}</h2><p>${m.desc}</p>
+    <div class="det-now">景气指数 ${b.index >= 0 ? '+' : ''}${b.index.toFixed(2)}　·　产出缺口 ${((b.outputGap || 0) * 100).toFixed(1)}%</div>
+    <h4>景气指数走势</h4>${bcWaveChart(hist, 1)}
+    <div class="det-axis"><span>最早</span><span>最近 ${hist.length} 个月</span></div>
+    <h4>产出缺口</h4>${bcGapChart(gap)}
+    <div class="det-axis"><span>负 = 资源闲置</span><span>正 = 经济过热</span></div>
+    <h4>当前周期的形状（由你的政策决定）</h4>
+    <div class="det-stats">
+      <div class="det-row"><span>波动幅度</span><b>${(s.amplitude * 100).toFixed(0)}%</b></div>
+      <div class="det-row"><span>周期长度</span><b>${s.period.toFixed(0)} 个月</b></div>
+      <div class="det-row"><span>自动稳定器强度</span><b>${(s.stabilizer * 100).toFixed(0)}%</b></div>
+      <div class="det-row"><span>投资加速数</span><b>${s.accelerator.toFixed(2)}</b></div>
+      <div class="det-row"><span>已完成完整周期</span><b>${b.cycleCount} 轮</b></div>
+      ${counts}
+    </div>
+    <h4>怎么改写它</h4>
+    <p>福利支出、公共支出与税率是<b>自动稳定器</b>——拧高它们，衰退的谷底会被削平，代价是财政与长期增速。</p>
+    <p>产业补贴、扩产意愿、库存策略与贸易开放度是<b>放大器</b>——拧高它们，繁荣更热、衰退更深，周期也会更短更急。</p>
+    <p class="muted">${m.hint}</p>
+    <button class="close" data-close>关闭</button>`);
+}
+
+function renderStage() {
+  const cur = curStage();
+  const ni = stageIdx(state.stage) + 1;
+  const next = ni < STAGES.length ? STAGES[ni] : null;
+  let ratio = 1;
+  if (next) {
+    const pr = (state.pop - cur.minPop) / Math.max(1, next.minPop - cur.minPop);
+    const mr = (state.t - cur.minMonths) / Math.max(1, next.minMonths - cur.minMonths);
+    ratio = Math.max(0, Math.min(1, Math.min(pr, mr)));
+  }
+  const steps = STAGES.map((s, i) => `<span class="stage-step ${i <= stageIdx(state.stage) ? 'on' : ''}">${s.icon}</span>`).join('<span class="stage-arrow">›</span>');
+  const oi = ORIENT_INFO[state.orientation];
+  document.getElementById('stage-bar').innerHTML = `
+    <div class="stage-head"><span>${cur.icon}</span><b>${cur.name}</b>
+      <span class="stage-orient" title="${oi[2]}">${oi[0]} ${oi[1]}</span>
+      <span class="stage-steps">${steps}</span></div>
+    <div class="stage-track"><div class="stage-fill" style="width:${(ratio * 100).toFixed(1)}%"></div></div>
+    <div class="stage-meta">${next
+      ? `距「${next.name}」还差：人口 ${Math.max(0, next.minPop - Math.round(state.pop)).toLocaleString()} 人${state.t < next.minMonths ? ` · 存续 ${next.minMonths - state.t} 个月` : ''}`
+      : '已达最高阶段 · 全境开发'}</div>
+    <div class="stage-meta">${cur.desc}</div>
+    <div class="stage-meta">地图视野 <b>${cur.view * 2 + 1}×${cur.view * 2 + 1}</b> 格 · 随城市成长逐步拉远</div>`;
+}
+
+/* ═══════════════ 9. 推进一个月 ═══════════════ */
+function checkStage() {
+  let idx = 0;
+  for (let i = STAGES.length - 1; i >= 0; i--) {
+    const s = STAGES[i];
+    if (state.pop >= s.minPop && state.t >= s.minMonths) { idx = i; break; }
+  }
+  const cur = stageIdx(state.stage);
+  if (cur > idx && state.pop >= STAGES[cur].minPop * 0.85) idx = cur;
+  if (idx === cur) return null;
+  state.stage = STAGES[idx].id;
+  if (idx > stageIdx(state.peak)) state.peak = state.stage;
+  developCity(STAGES[idx]);
+  return { from: STAGES[cur], to: STAGES[idx], up: idx > cur };
+}
+
+function tick() {
+  state.t++;
+  state.month++; if (state.month > 12) { state.month = 1; state.year++; }
+  // ① 先推进经济周期（景气乘数当月就作用在需求与投资上），政策已在本月生效
+  const bc = stepBC();
+  // ② 轻量演化：与真实引擎的方向一致（增长 → 需求 → 利润 → 迁入）
+  // 景气对产出的拉动给到 ±1.2%：萧条期 GDP 真的会环比收缩，产出缺口才走得进负区间。
+  const growth = 1 + ((state.firmProfit > 0 ? 0.010 : 0.003) + gov.publicSpend * 0.002) * bc.demandMult + bc.index * 0.012;
+  // GDP 是「城市当月增加值」（元/月）：噪声按总量比例给，不能是固定 12 元
+  state.gdp = Math.max(300000, state.gdp * growth + (rnd() - 0.4) * state.gdp * 0.004);
+  updateGap(state.gdp);          // 产出缺口：实际产出围着趋势线摆动
+  applyCycle();                  // 景气 → 就业 / 物价 / 利润 / 产能
+  // 迁移按「户」决策、落到「人」要乘 HOUSEHOLD_SIZE。
+  // 固定项是「岗位拉力」，比例项是「已有规模的自增效应」（大城市更容易吸引人）。
+  // 两项合起来让村庄 → 大都市约 10~14 年走完，与真实引擎的节奏对齐。
+  state.pop += (((state.firmProfit > 0 ? 4 : 0.8) + rnd() * 6 + (state.happy - 60) * 0.35)
+    * (0.6 + bc.demandMult * 0.4) * HOUSEHOLD_SIZE)
+    + state.pop * 0.004 * (0.3 + bc.demandMult * 0.7);
+  state.pop = Math.max(160, state.pop);
+  state.savings += state.wage * (1 - gov.taxRate) * hp.savingsRate;
+  // 财政：税收基数是工资+消费+利润的合计（简化为工资的 1.35 倍），支出按户、补贴按全城计
+  const hh = state.pop / HOUSEHOLD_SIZE;
+  state.treasury += hh * state.wage * gov.taxRate * 1.35
+    - hh * GOV_SPEND_K * gov.publicSpend
+    - hh * WELFARE_K * gov.welfare
+    - gov.industrySubsidy * SUBSIDY_CITY - gov.eduSubsidy * EDU_CITY;
+  // 物价围绕（政策 + 产出缺口决定的）中枢波动，不无限漂移
+  state.cpi += (state.cpiBase - state.cpi) * 0.12 + (rnd() - 0.5) * 0.6;
+  state.happy = Math.max(30, Math.min(85,
+    58 + gov.publicSpend * 12 + gov.welfare * 10 - Math.max(0, state.cpi - 105) * 0.22
+    + (state.emp - 0.9) * 40 + (rnd() - 0.5) * 2));
+
+  // 个体博弈的结果：亏损到一定程度就有企业退出市场（长期拧错政策的代价）
+  if (state.firmProfit < -2000) state.bankruptcies += 1;
+  // 城市定位由长期政策偏向涌现；序列供顶栏画累积曲线
+  state.orientation = evaluateOrientation();
+  updateSeries();
+
+  evolveTiles();
+  const sc = checkStage();
+  const fresh = runUnlocks(true);   // 每月结算：只认「你造成的城市状态」，纯挂机推不动
+  const cyc = tickCycle();          // 循环：个人 → 企业 → 政府 → 回到个人
+  if (sc) buildGrid();              // 阶段变了 → 视野跟着变，重建取景格子
+  paintCity(); renderStats(); renderBC(); renderCycle(); renderStage(); renderDash(); renderKnowledge(); renderPolicy();
+  if (selected !== null) renderTileInfo();
+  if (sc) {
+    toast(sc.up ? `${sc.to.icon} 城市升级为「${sc.to.name}」：${sc.to.unlockNote}` : `⚠ 城市衰退为「${sc.to.name}」：人口外流`);
+    checkPerspUnlock();
+  }
+  // 换阶段先播报天气，再弹题——玩家会先知道"为什么这个名词现在才出现"
+  if (bcDirty) { bcDirty = false; announcePhase(); }
+  // 解锁弹题与循环轮转都用同一个弹窗：同月撞车时只弹题，轮转降级成提示条
+  if (fresh.length) {
+    announceUnlocks(fresh);
+    if (cyc) { markPhase(cyc.phase); setPerspective(cyc.phase);
+      toast(cyc.kind === 'round' ? `🔁 进入第 ${cyc.round} 轮循环 · ${PHASE_LABEL[cyc.phase]}` : `🔄 本轮轮到${PHASE_LABEL[cyc.phase]}`); }
+  } else if (cyc) announceCycle(cyc);
+}
+
+// 解锁播报：一次只会有一个（解锁引擎保证），所以直接说清楚"因为什么"
+function announceUnlocks(list) {
+  if (!list || !list.length) return;
+  const t = list[0], term = termByKey(t.key);
+  const extra = term && term.unlocks && term.unlocks.levers && term.unlocks.levers.length ? ' · 放出新滑杆' : '';
+  toast(`📖 第 ${t.tier} 层概念「${t.name}」解锁：${t.reason}${extra}`);
+  // 解锁即闯关：简介 + 一道题。答完把积分与奖杯记进学习档案，图谱上也会打勾
+  openTermQuiz(t.key, () => { renderKnowledge(); renderQuizBtn(); });
+}
+// 循环轮转播报：换视角 / 进入下一轮都告诉玩家接下来该看什么
+function announceCycle(ev) {
+  markPhase(ev.phase);
+  if (ev.kind === 'round') {
+    setPerspective(ev.phase);
+    showModal(`<div class="chapter">第 ${ev.round} 轮循环开始</div>
+      <h2>🔁 回到${PHASE_LABEL[ev.phase]}</h2>
+      <p>上一轮你在企业视角拧过的工资与加价、在政府视角定下的税率与支出，已经悄悄改写了这座城市。
+        现在回到同一个身份，你会发现同一批数字已经不是上一轮的模样。</p>
+      <h4>这一轮你会看到什么</h4>
+      <p>第 ${ev.round} 轮会放出<b>更深一层</b>的概念。它们仍然是同一批主体之间的博弈，只是换了个切面。</p>
+      <button class="close" data-close>继续</button>`);
+    toast(`🔁 进入第 ${ev.round} 轮循环 · ${PHASE_LABEL[ev.phase]}`);
+  } else {
+    setPerspective(ev.phase);
+    toast(`🔄 本轮轮到${PHASE_LABEL[ev.phase]}`);
+  }
+}
+
+/* ═══════════════ 10. 控制 / 存档 ═══════════════ */
+let speed = 1, timer = null, lastSpeed = 1;
+function schedule() { if (timer) { clearInterval(timer); timer = null; } if (speed > 0) timer = setInterval(tick, 1000 / speed); }
+function pauseDemo() { if (timer) { clearInterval(timer); timer = null; } speed = 0; highlightSpeed(0); }
+function resumeDemo(v) { if (v <= 0) return; speed = v; lastSpeed = v; highlightSpeed(v); schedule(); if (demo) demo.textContent = '⏹ 停止'; }
+function highlightSpeed(v) {
+  document.querySelectorAll('#controls button[data-speed]').forEach(x => x.classList.remove('active'));
+  const b = document.querySelector(`#controls button[data-speed="${v}"]`);
+  if (b) b.classList.add('active');
+}
+let toastTimer = null;
+function toast(msg) {
+  let t = document.getElementById('toast');
+  if (!t) { t = document.createElement('div'); t.id = 'toast'; t.className = 'toast'; document.body.appendChild(t); }
+  t.textContent = msg; t.classList.add('show');
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 1800);
+}
+
+const SAVE_KEY = 'macroville.preview.v3';
+const snapshot = () => ({
+  // business / quiz / base 必须深拷贝：否则 INITIAL 快照会跟着当前局一起被改写
+  state: { ...state, unlocked: state.unlocked.slice(),
+    business: JSON.parse(JSON.stringify(state.business || initBC())),
+    quiz: JSON.parse(JSON.stringify(state.quiz || emptyQuiz())),
+    base: { ...(state.base || {}) } },
+  gov: { ...gov }, hp: { ...hp }, fp: { ...fp },
+  tracking: {
+    leverMax: { ...tracking.leverMax }, leverMin: { ...tracking.leverMin },
+    peak: { ...tracking.peak }, trough: { ...tracking.trough }, streak: { ...tracking.streak }
+  },
+  tiles: tiles.map(t => ({ ...t })), selected, layer
+});
+function applySnapshot(s) {
+  Object.assign(state, s.state);
+  if (!Array.isArray(state.unlocked)) state.unlocked = [];
+  // 循环 / 定位 / 时间序列：旧存档没有这些字段时补齐，避免读档后炸掉
+  if (!state.cycle || typeof state.cycle !== 'object') {
+    state.cycle = { round:1, phase:'household', phaseMonths:0, roundMonths:0, visited:['household'], roundsPlanned:4, lastUnlockMonth:-99 };
+  }
+  if (typeof state.cycle.roundMonths !== 'number') state.cycle.roundMonths = 0;
+  if (typeof state.cycle.roundsPlanned !== 'number') state.cycle.roundsPlanned = 4;
+  if (typeof state.cycle.round !== 'number') state.cycle.round = 1;
+  if (!Array.isArray(state.cycle.visited)) state.cycle.visited = [state.cycle.phase || 'household'];
+  if (typeof state.cycle.lastUnlockMonth !== 'number') state.cycle.lastUnlockMonth = -99;
+  if (!state.orientation) state.orientation = 'balanced';
+  if (!state.series) state.series = { disposableIncome:[], livingStandard:[], wealth:[], resilience:[],
+    avgProfit:[], capacityUtil:[], avgPrice:[], revenue:[], bankruptcies:[], poorShare:[], maxLandValue:[], vacancyRate:[] };
+  if (typeof state.bankruptcies !== 'number') state.bankruptcies = 0;
+  // 经济周期 / 问答档案 / 政策基准：旧存档缺字段时补齐，读档后周期不会失效
+  state.business = normalizeBC(state.business);
+  state.quiz = mergeQuiz(normalizeQuiz(state.quiz), loadQuizProfile());
+  if (!state.base || typeof state.base !== 'object') state.base =
+    { price:10.4, cpi:100, wage:10, cons:5.2, emp:0.90, profit:48, util:0.72, happy:60, rev:860 };
+  Object.assign(gov, s.gov); Object.assign(hp, s.hp); Object.assign(fp, s.fp);
+  if (s.tracking) {
+    // 旧档没有痕迹记录：就地用当前旋钮与指标重建，而不是清空
+    tracking.leverMax = { ...(s.tracking.leverMax || {}) };
+    tracking.leverMin = { ...(s.tracking.leverMin || {}) };
+    tracking.peak = { ...(s.tracking.peak || {}) };
+    tracking.trough = { ...(s.tracking.trough || {}) };
+    tracking.streak = { ...(s.tracking.streak || {}) };
+  }
+  if (s.tiles && s.tiles.length === tiles.length) s.tiles.forEach((t, i) => Object.assign(tiles[i], t));
+  selected = s.selected ?? null;
+  layer = s.layer || 'usage';
+  buildGrid(true);
+  document.querySelectorAll('#map-tools .layer-btn').forEach((b, i) => b.classList.toggle('active', LAYERS[i][0] === layer));
+  seenPersp = unlockedPersp();
+  perspective = Math.min(PERSP.length - 1, seenPersp.length - 1) >= 0
+    ? PERSP[Math.max(0, seenPersp.length - 1)].id : 'household';
+  if (!unlockedPersp().includes(perspective)) perspective = 'household';
+  syncTabs(); renderPolicy(); renderDash(); renderKnowledge(); renderLegend();
+  paintCity(); renderStats(); renderBC(); renderCycle(); renderStage(); renderTileInfo();
+}
+
+const controlsEl = document.getElementById('controls');
+controlsEl.innerHTML = '';
+const rulesBtn = document.createElement('button');
+rulesBtn.className = 'rules-btn'; rulesBtn.textContent = '规则';
+rulesBtn.onclick = showRules;
+controlsEl.appendChild(rulesBtn);
+// 数值口径：把每个数字的单位与现实锚点摊开讲，避免出现「9.6 单位」这种读不懂的显示
+const unitBtn = document.createElement('button');
+unitBtn.className = 'rules-btn'; unitBtn.textContent = '单位';
+unitBtn.title = '每个数字的单位与现实参照';
+unitBtn.onclick = () => showModal(unitHelpHtml());
+controlsEl.appendChild(unitBtn);
+// 学习档案：积分 / 奖杯 / 错题重做
+const quizBtn = document.createElement('button');
+quizBtn.id = 'quiz-btn'; quizBtn.className = 'qs-btn'; quizBtn.title = '闯关问答的学习档案';
+quizBtn.onclick = openArchive;
+controlsEl.appendChild(quizBtn);
+renderQuizBtn();
+[['⏸', 0], ['1×', 1], ['2×', 2], ['4×', 4]].forEach(([lab, v]) => {
+  const b = document.createElement('button');
+  b.textContent = lab; b.dataset.speed = String(v);
+  if (v === 1) b.classList.add('active');
+  b.onclick = () => { highlightSpeed(v); speed = v; if (v > 0) lastSpeed = v; schedule(); };
+  controlsEl.appendChild(b);
+});
+/* ── 存档：多槽位 + 自定义命名 + 选择读取 ── */
+const IDX_KEY = SAVE_KEY + '.index';
+const SLOT_KEY = SAVE_KEY + '.slot.';
+const ACTIVE_KEY = SAVE_KEY + '.active';
+const MAX_SLOTS = 12;
+function readIndex() { try { const a = JSON.parse(localStorage.getItem(IDX_KEY) || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+function writeIndex(l) { try { localStorage.setItem(IDX_KEY, JSON.stringify(l)); } catch (e) {} }
+function newSlotId() { return 's' + Date.now().toString(36) + Math.floor(Math.random() * 1296).toString(36); }
+function fmtTime(t) { const d = new Date(t), p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; }
+function suggestName() {
+  return `${ORIENT_INFO[state.orientation][1]}·${curStage().name}·${state.year}年`;
+}
+function metaOf(id, name, createdAt) {
+  return { id, name, createdAt, updatedAt: Date.now(), month: state.t, stageName: curStage().name,
+    population: Math.round(state.pop), round: state.cycle.round, unlocked: state.unlocked.length,
+    orientation: state.orientation };
+}
+function saveAsSlot(name) {
+  const id = newSlotId();
+  let list = readIndex();
+  if (list.length >= MAX_SLOTS) { list.sort((a, b) => a.updatedAt - b.updatedAt);
+    const drop = list.shift(); if (drop) try { localStorage.removeItem(SLOT_KEY + drop.id); } catch (e) {} }
+  const meta = metaOf(id, name, Date.now());
+  try { localStorage.setItem(SLOT_KEY + id, JSON.stringify(snapshot())); }
+  catch (e) { toast('保存失败：本地存储空间不足'); return null; }
+  list.push(meta); writeIndex(list);
+  try { localStorage.setItem(ACTIVE_KEY, id); } catch (e) {}
+  return id;
+}
+function overwriteSlot(id, name) {
+  const list = readIndex(); const i = list.findIndex(m => m.id === id);
+  if (i < 0) return false;
+  try { localStorage.setItem(SLOT_KEY + id, JSON.stringify(snapshot())); }
+  catch (e) { toast('保存失败：本地存储空间不足'); return false; }
+  list[i] = metaOf(id, name || list[i].name, list[i].createdAt); writeIndex(list);
+  try { localStorage.setItem(ACTIVE_KEY, id); } catch (e) {}
+  return true;
+}
+function loadSlot(id) {
+  try {
+    const raw = localStorage.getItem(SLOT_KEY + id);
+    if (!raw) return false;
+    applySnapshot(JSON.parse(raw));
+    try { localStorage.setItem(ACTIVE_KEY, id); } catch (e) {}
+    return true;
+  } catch (e) { toast('存档已损坏'); return false; }
+}
+function deleteSlot(id) {
+  try { localStorage.removeItem(SLOT_KEY + id); } catch (e) {}
+  writeIndex(readIndex().filter(m => m.id !== id));
+}
+function renameSlot(id, name) {
+  const list = readIndex(); const m = list.find(x => x.id === id);
+  if (!m) return; m.name = name; m.updatedAt = Date.now(); writeIndex(list);
+}
+function openSaveDialog() {
+  const list = readIndex().sort((a, b) => b.updatedAt - a.updatedAt);
+  let active = null; try { active = localStorage.getItem(ACTIVE_KEY); } catch (e) {}
+  const rows = list.length ? list.map(m => `
+    <div class="save-row ${m.id === active ? 'active' : ''}" data-id="${m.id}">
+      <div class="sr-main">
+        <div class="sr-name">${m.name}${m.id === active ? '<span class="sr-tag">当前</span>' : ''}</div>
+        <div class="sr-meta">${m.stageName} · 第 ${m.month} 月 · 人口 ${m.population.toLocaleString('zh-CN')} · 第 ${m.round} 轮 · 名词 ${m.unlocked}</div>
+        <div class="sr-meta">${ORIENT_INFO[m.orientation] ? ORIENT_INFO[m.orientation][1] : '均衡型'} · ${fmtTime(m.updatedAt)}</div>
+      </div>
+      <div class="sr-ops">
+        <button class="sr-btn" data-act="load">读取</button>
+        <button class="sr-btn" data-act="save">覆盖</button>
+        <button class="sr-btn" data-act="rename">改名</button>
+        <button class="sr-btn danger" data-act="del">删除</button>
+      </div>
+    </div>`).join('') : '<p class="muted">还没有任何存档。在下面起个名字，把当前的城市存下来。</p>';
+  showModal(`<div class="chapter">存档管理</div><h2>存档 / 读档</h2>
+    <div class="save-new">
+      <input id="save-name" type="text" placeholder="给这座城市起个名字" value="${suggestName()}" />
+      <button class="close" id="save-new-btn" style="margin:0">存为新档</button>
+    </div>
+    <h4>已有存档（${list.length}）</h4>
+    <div class="save-list">${rows}</div>
+    <p class="muted">存档保存在本浏览器本地，换浏览器或清缓存会丢失。</p>
+    <button class="close" data-close>关闭</button>`);
+  const card = document.querySelector('#concept-modal .card');
+  card.querySelector('#save-new-btn').onclick = () => {
+    const n = (card.querySelector('#save-name').value || '').trim() || suggestName();
+    if (saveAsSlot(n)) { toast(`已保存为「${n}」`); openSaveDialog(); }
+  };
+  card.querySelectorAll('.save-row').forEach(row => {
+    const id = row.dataset.id;
+    row.querySelectorAll('.sr-btn').forEach(b => {
+      b.onclick = () => {
+        const act = b.dataset.act;
+        const cur = readIndex().find(m => m.id === id);
+        if (act === 'load') { if (loadSlot(id)) { closeModal(); toast('已读档'); } }
+        else if (act === 'save') { if (overwriteSlot(id, cur && cur.name)) { toast(`已覆盖「${cur ? cur.name : '存档'}」`); openSaveDialog(); } }
+        else if (act === 'rename') { const v = window.prompt('新的存档名称', cur ? cur.name : ''); if (v && v.trim()) { renameSlot(id, v.trim()); openSaveDialog(); } }
+        else if (act === 'del') { if (window.confirm(`确定删除存档「${cur ? cur.name : ''}」？此操作不可恢复。`)) { deleteSlot(id); toast('已删除'); openSaveDialog(); } }
+      };
+    });
+  });
+  const inp = card.querySelector('#save-name'); if (inp) { inp.focus(); inp.select(); }
+}
+const SAVE_ACTIONS = {
+  存档: () => openSaveDialog(),
+  读档: () => openSaveDialog(),
+  新局: () => openSetup()
+};
+['存档', '读档', '新局'].forEach(t => {
+  const b = document.createElement('button');
+  b.textContent = t; b.onclick = SAVE_ACTIONS[t];
+  controlsEl.appendChild(b);
+});
+// 界面缩放滑轨：整体等比缩放，不用再把浏览器缩到 60%
+const zoomBox = document.createElement('div');
+zoomBox.className = 'zoom-box';
+zoomBox.innerHTML = '<label title="整体缩放界面">界面</label><input type="range" min="70" max="140" step="5" value="100" /><span class="zv">100%</span>';
+const zoomInput = zoomBox.querySelector('input'), zoomVal = zoomBox.querySelector('.zv');
+zoomInput.oninput = () => {
+  const v = Number(zoomInput.value);
+  document.documentElement.style.setProperty('--ui-zoom', String(v / 100));
+  zoomVal.textContent = v + '%';
+  setTimeout(() => { fitGrid(); buildGrid(true); paintCity(); }, 0);
+};
+controlsEl.appendChild(zoomBox);
+const demo = document.createElement('button');
+demo.id = 'demo'; demo.textContent = '▶ 演示运行';
+demo.onclick = () => {
+  if (timer || speed > 0) { pauseDemo(); demo.textContent = '▶ 演示运行'; }
+  else { demo.textContent = '⏹ 停止'; speed = lastSpeed || 1; schedule(); }
+};
+controlsEl.appendChild(demo);
+
+/* ── 侧栏宽度可拖 + 页签切换 ── */
+const sideEl = document.getElementById('side');
+const splitterEl = document.getElementById('splitter');
+let dragSide = false;
+splitterEl.onmousedown = e => { dragSide = true; splitterEl.classList.add('dragging'); e.preventDefault(); };
+window.addEventListener('mousemove', e => {
+  if (!dragSide) return;
+  const w = Math.max(280, Math.min(window.innerWidth - 420, window.innerWidth - e.clientX));
+  sideEl.style.width = w + 'px';
+  fitGrid(); buildGrid(true); paintCity();
+});
+window.addEventListener('mouseup', () => { if (dragSide) { dragSide = false; splitterEl.classList.remove('dragging'); } });
+document.querySelectorAll('.side-tabs .st').forEach(b => {
+  b.onclick = () => {
+    const pane = b.dataset.pane;
+    document.querySelectorAll('.side-tabs .st').forEach(x => x.classList.toggle('active', x === b));
+    document.querySelectorAll('.pane').forEach(p => p.classList.toggle('active', p.id === 'pane-' + pane));
+    if (pane === 'dash') renderDash();
+    if (pane === 'know') renderKnowledge();
+    if (pane === 'policy') renderPolicy();
+  };
+});
+window.addEventListener('resize', () => { fitGrid(); buildGrid(true); paintCity(); });
+
+/* ── 开局设定：城市蓝图 + 循环轮数 ── */
+const BLUEPRINTS = [
+  { id:'rural', name:'农耕村落', icon:'🌾', tag:'人少、钱紧、靠天吃饭',
+    desc:'几百人的小聚落，储蓄保守，政府几乎不干预。', hint:'增长很慢，但家庭财富与抗风险能力会先于规模长起来。',
+    pop:988, gov:{ taxRate:0.14, publicSpend:0.22, minWage:2000 },
+    hp:{ savingsRate:0.34, consumptionPropensity:0.85, laborParticipation:0.82, skillInvest:0.1, riskAppetite:0.3 },
+    fp:{ markup:0.22, wageMultiplier:0.9, expansion:0.2, rdInvest:0.08, inventoryStrategy:0.5 } },
+  { id:'marketTown', name:'集市重镇', icon:'🛍', tag:'商贸起家，人流就是现金流',
+    desc:'商路上的老镇，商铺密度高，居民爱消费。', hint:'商业繁荣、物价敏感，需求端一有波动立刻传导到定价与就业。',
+    pop:1612, gov:{ taxRate:0.18, publicSpend:0.3, minWage:2500, tradeOpenness:0.25 },
+    hp:{ savingsRate:0.16, consumptionPropensity:1.2, laborParticipation:0.92, skillInvest:0.2, riskAppetite:0.65 },
+    fp:{ markup:0.34, expansion:0.4, rdInvest:0.15, inventoryStrategy:0.35 } },
+  { id:'factory', name:'工业新城', icon:'🏭', tag:'先污染，后治理',
+    desc:'被规划成厂区的土地，政府用补贴换岗位。', hint:'岗位充足、人口冲得快，但污染与低工资会先把满意度压下去。',
+    pop:1820, gov:{ taxRate:0.22, publicSpend:0.18, minWage:2300, industrySubsidy:0.3 },
+    hp:{ savingsRate:0.14, consumptionPropensity:1.05, laborParticipation:0.98, skillInvest:0.12 },
+    fp:{ markup:0.26, wageMultiplier:0.85, expansion:0.55, rdInvest:0.1, inventoryStrategy:0.55 } },
+  { id:'port', name:'贸易港口', icon:'⚓', tag:'外面的世界决定了这里的物价',
+    desc:'面向外部市场的港城，贸易开放度起点就高。', hint:'需求被外部放大，也更容易被外部冲击，波动幅度明显更大。',
+    pop:1716, gov:{ taxRate:0.16, publicSpend:0.26, minWage:2690, tradeOpenness:0.55 },
+    hp:{ savingsRate:0.18, consumptionPropensity:1.15, skillInvest:0.22, riskAppetite:0.7 },
+    fp:{ markup:0.3, wageMultiplier:1.05, expansion:0.45, rdInvest:0.2, inventoryStrategy:0.3 } },
+  { id:'campus', name:'科教新城', icon:'🎓', tag:'把钱花在人身上',
+    desc:'大学与研究所先来，公共支出与研发补贴开局就不低。', hint:'短期利润被摊薄、增长偏慢，但技能与生产率会滚雪球。',
+    pop:1352, gov:{ taxRate:0.24, publicSpend:0.48, minWage:2600, eduSubsidy:0.4 },
+    hp:{ savingsRate:0.22, consumptionPropensity:0.95, laborParticipation:0.86, skillInvest:0.55, riskAppetite:0.4 },
+    fp:{ markup:0.32, wageMultiplier:1.15, rdInvest:0.5, inventoryStrategy:0.45 } },
+  { id:'greenfield', name:'自由实验', icon:'🧪', tag:'全部交给随机数',
+    desc:'不预设任何倾向，初始参数在一组合理区间里随机抽取。', hint:'每一局都是新题，适合已经摸清机制的玩家。',
+    pop:1560, gov:{}, hp:{}, fp:{} }
+];
+let setup = { blueprint:'marketTown', rounds:4 };
+function applyBlueprint(id) {
+  const bp = BLUEPRINTS.find(b => b.id === id) || BLUEPRINTS[1];
+  Object.assign(gov, { taxRate:0.2, minWage:2500, publicSpend:0.3, industrySubsidy:0, eduSubsidy:0, tradeOpenness:0, welfare:0 }, bp.gov);
+  Object.assign(hp, { savingsRate:0.2, consumptionPropensity:1.0, laborParticipation:0.9, skillInvest:0.2, riskAppetite:0.5 }, bp.hp);
+  Object.assign(fp, { markup:0.3, wageMultiplier:1.0, expansion:0.3, rdInvest:0.2, inventoryStrategy:0.4 }, bp.fp);
+  state.blueprint = bp.id;
+  state.pop = bp.pop;
+  for (const k in state.series) state.series[k].length = 0;
+  return bp;
+}
+function openSetup() {
+  let sel = { ...setup };
+  showModal(`<div class="chapter">开局设定</div><h2>你要建一座什么样的城市？</h2>
+    <p>蓝图决定了<b>初始人口与一整套初始参数</b>。选完之后城市会自己长——家庭和企业各自盘算，
+      跑出什么结果取决于你开的这个头，以及后面拧的每一根旋钮。</p>
+    <div class="bp-grid">${BLUEPRINTS.map(b => `
+      <button class="bp-card ${b.id === sel.blueprint ? 'sel' : ''}" data-bp="${b.id}">
+        <div class="bp-head"><span class="bp-icon">${b.icon}</span><b>${b.name}</b><span class="bp-tag">${b.tag}</span></div>
+        <div class="bp-desc">${b.desc}</div>
+        <div class="bp-hint">通常会跑出：${b.hint}</div>
+      </button>`).join('')}</div>
+    <h4>这一局走几轮循环？</h4>
+    <p class="muted">一轮 = 个人 → 企业 → 政府 各走一段，走完回到个人视角再来一遍。
+      每一轮只放出对应深度的一批概念，轮数越多层次越深。</p>
+    <div class="round-pick">${[3, 4, 5].map(n =>
+      `<button class="rp-btn ${n === sel.rounds ? 'sel' : ''}" data-r="${n}">${n} 轮${n === 4 ? '（推荐）' : ''}</button>`).join('')}</div>
+    <div class="setup-actions"><button class="close" id="setup-go">开始这一局</button></div>`);
+  const card = document.querySelector('#concept-modal .card');
+  card.querySelectorAll('.bp-card').forEach(c => c.onclick = () => {
+    sel.blueprint = c.dataset.bp;
+    card.querySelectorAll('.bp-card').forEach(x => x.classList.toggle('sel', x === c));
+  });
+  card.querySelectorAll('.rp-btn').forEach(b => b.onclick = () => {
+    sel.rounds = Number(b.dataset.r);
+    card.querySelectorAll('.rp-btn').forEach(x => x.classList.toggle('sel', x === b));
+  });
+  card.querySelector('#setup-go').onclick = () => {
+    closeModal(); setup = sel; newGame(sel);
+  };
+}
+
+/* ═══════════════ 11. 启动 ═══════════════ */
+function newGame(r) {
+  // 只回到开局状态，不销毁存档——否则开新局之后「读档」就失效了
+  applySnapshot(INITIAL);
+  applyBlueprint(r.blueprint);
+  state.cycle.roundsPlanned = r.rounds;
+  state.cycle.round = 1; state.cycle.phase = 'household';
+  state.cycle.phaseMonths = 0; state.cycle.roundMonths = 0;
+  state.cycle.visited = ['household']; state.cycle.lastUnlockMonth = -99;
+  state.unlocked = [];
+  // 开新城 = 新的周期（从复苏起步）；但已经学会的东西（积分/奖杯）不清零
+  state.business = initBC();
+  state.quiz = mergeQuiz(state.quiz || emptyQuiz(), loadQuizProfile());
+  for (const k in tracking) { for (const j in tracking[k]) delete tracking[k][j]; }
+  perspective = 'household'; seenPersp = unlockedPersp();
+  developCity(STAGES[0]);
+  recomputeFromLevers();
+  state.orientation = evaluateOrientation();
+  buildGrid(true);
+  seedUnlocks();        // 只点亮最浅的一批基础词，其余在游戏里逐个解锁
+  updateSeries();
+  syncTabs(); renderLegend(); paintCity(); renderTileInfo();
+  renderStats(); renderBC(); renderCycle(); renderStage(); renderPolicy(); renderDash(); renderKnowledge();
+}
+developCity(STAGES[0]);
+recomputeFromLevers();
+state.orientation = evaluateOrientation();
+buildGrid(true);      // 按「村落」的视野建取景
+seedUnlocks();        // 点亮最浅的一批基础名词
+updateSeries();
+state.quiz = mergeQuiz(state.quiz, loadQuizProfile());   // 学习成果跨局留存
+const INITIAL = snapshot();
+seenPersp = unlockedPersp();
+
+syncTabs(); renderLegend(); paintCity(); renderTileInfo();
+renderStats(); renderBC(); renderCycle(); renderStage(); renderPolicy(); renderDash(); renderKnowledge();
+openSetup();          // 首次进入先选蓝图与轮数
+</script>
+</body>
+</html>

@@ -1,0 +1,49 @@
+name: 📊 数值 / 平衡反馈
+description: 某个数字看着不对劲、城市长势不合理、政策手感不对
+title: "[数值] "
+labels: ["balance", "feedback"]
+body:
+  - type: markdown
+    value: |
+      这是本项目最想听到的反馈：任何「一看就假」的数字，或者调了没反应的旋钮。
+      请附上蓝图名 + 种子 + 月数，这样我能原样复现你看到的画面。
+  - type: dropdown
+    id: kind
+    attributes:
+      label: 哪一类
+      options:
+        - 某个数字明显偏离现实（工资/物价/地价/GDP/财政）
+        - 城市长势不对（太快 / 太慢 / 长不动）
+        - 政策旋钮没手感（调了没反应 / 反应过猛）
+        - 就业与人口机制（招不到人 / 假充分就业）
+        - 其他
+    validations:
+      required: true
+  - type: input
+    id: scene
+    attributes:
+      label: 蓝图 + 种子 + 月数
+      placeholder: 例如 factory / 20261020 / 第 240 个月
+    validations:
+      required: true
+  - type: textarea
+    id: seen
+    attributes:
+      label: 你看到的数值
+      description: 把相关指标抄下来（HUD、仪表盘、地块详情里的数）
+      placeholder: |
+        人口 2.1 万，岗位容量 2.5 万，失业率 3%，企业 37 家，均雇员 12.5 人
+    validations:
+      required: true
+  - type: textarea
+    id: think
+    attributes:
+      label: 你觉得应该是什么样 / 依据
+      placeholder: 例如：同类工业城市这个阶段应该至少 10 万人口
+    validations:
+      required: true
+  - type: textarea
+    id: shot
+    attributes:
+      label: 截图（可选）
+      description: 直接把截图拖进来
