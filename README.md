@@ -8,7 +8,10 @@
 
 ## 🎁 立即试玩（不用装任何东西）
 
-**下载 [`release/MacroVille-v0.2.0-offline.html`](release/MacroVille-v0.2.0-offline.html)（点进文件页右上角的 ↓ Download raw file）→ 双击用浏览器打开就能玩。**
+**方式一 · 在线玩**：<https://yushaner.github.io/macroville/>（GitHub Pages，打开即玩）
+
+**方式二 · 下载单文件**：[`release/MacroVille-v0.2.0-offline.html`](release/MacroVille-v0.2.0-offline.html)
+（进文件页点右上角 ↓ Download raw file）→ 双击用浏览器打开，**不联网也能玩**。
 
 单个 HTML 文件（445 KB），JS/CSS 全部内联，**不联网也能玩、不依赖 Node、不上传任何数据**。
 Releases 页面另有打好包的 zip；`npm run pack` 也能自己生成一个（含 `release/*.zip`）。
@@ -26,7 +29,8 @@ Releases 页面另有打好包的 zip；`npm run pack` 也能自己生成一个�
 | 可玩性 | 政策滑杆的反馈够明显吗？有没有「调了半天没感觉」的旋钮？ |
 | 教学有效性 | 概念卡和闯关题真的帮你理解概念了吗？题库难度如何？ |
 
-👉 **直接开 [Issue](../../issues/new/choose) 就行**（有模板）。报数值问题请附上：蓝图名 + 种子 + 第几个月 + 截图。
+👉 **直接开 [Issue](https://github.com/yushaner/macroville/issues/new/choose) 就行**（有模板）。
+报数值问题请附上：蓝图名 + 种子 + 第几个月 + 截图。
 完整的进展记录、已知问题与路线图见 [`PROGRESS.md`](PROGRESS.md)。
 
 ---
