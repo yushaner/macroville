@@ -10,8 +10,8 @@
 
 **方式一 · 在线玩**：<https://yushaner.github.io/macroville/>（GitHub Pages，打开即玩）
 
-**方式二 · 下载单文件**：[`release/MacroVille-v0.2.0-offline.html`](release/MacroVille-v0.2.0-offline.html)
-（进文件页点右上角 ↓ Download raw file）→ 双击用浏览器打开，**不联网也能玩**。
+**方式二 · 下载单机版**：[`MacroVille-v0.2.0-offline.zip`](https://github.com/yushaner/macroville/releases/download/v0.2.0/MacroVille-v0.2.0-offline.zip)
+（157 KB，Releases 页 Assets）→ 解压 → 双击 `MacroVille-v0.2.0-offline.html`，**不联网也能玩**。
 
 单个 HTML 文件（445 KB），JS/CSS 全部内联，**不联网也能玩、不依赖 Node、不上传任何数据**。
 Releases 页面另有打好包的 zip；`npm run pack` 也能自己生成一个（含 `release/*.zip`）。
